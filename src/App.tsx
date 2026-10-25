@@ -1,9 +1,9 @@
-import Counter from "./exercises/Counter";
+import ControlledForm from "./exercises/ControlledForm";
 
 function App() {
   return (
     <main>
-      <Counter />
+      <ControlledForm />
     </main>
   );
 }
