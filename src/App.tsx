@@ -1,9 +1,10 @@
-import FilteredList from "./exercises/FilteredList";
+
+import FetchUsers from "./exercises/FetchUsers";
 
 function App() {
   return (
     <main>
-      <FilteredList />
+      <FetchUsers />
     </main>
   );
 }
