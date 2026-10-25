@@ -1,9 +1,9 @@
-import ControlledForm from "./exercises/ControlledForm";
+import FilteredList from "./exercises/FilteredList";
 
 function App() {
   return (
     <main>
-      <ControlledForm />
+      <FilteredList />
     </main>
   );
 }
