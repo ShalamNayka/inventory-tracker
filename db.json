@@ -1,0 +1,51 @@
+{
+  "categories": [
+    {
+      "id": "cat-1",
+      "name": "Electronics"
+    },
+    {
+      "id": "cat-2",
+      "name": "Stationery"
+    },
+    {
+      "id": "cat-3",
+      "name": "Furniture"
+    }
+  ],
+  "items": [
+    {
+      "id": "item-1",
+      "name": "Laptop",
+      "categoryId": "cat-1",
+      "price": 55000,
+      "stock": 8,
+      "lowStockThreshold": 5
+    },
+    {
+      "id": "item-2",
+      "name": "Notebook",
+      "categoryId": "cat-2",
+      "price": 80,
+      "stock": 4,
+      "lowStockThreshold": 10
+    },
+    {
+      "id": "item-3",
+      "name": "Office Chair",
+      "categoryId": "cat-3",
+      "price": 3500,
+      "stock": 15,
+      "lowStockThreshold": 5
+    },
+    {
+      "id": "item-4",
+      "name": "Wireless Mouse",
+      "categoryId": "cat-1",
+      "price": 750,
+      "stock": 5,
+      "lowStockThreshold": 5
+    }
+  ],
+  "stockMovements": []
+}
