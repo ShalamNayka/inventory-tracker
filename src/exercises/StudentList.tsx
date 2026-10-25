@@ -1,4 +1,3 @@
-
 type StudentListProps = {
   students: string[];
 };

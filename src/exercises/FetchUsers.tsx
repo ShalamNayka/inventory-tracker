@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 type User = {
   id: number;
@@ -10,7 +9,7 @@ type User = {
 function FetchUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -18,21 +17,20 @@ function FetchUsers() {
     async function loadUsers() {
       try {
         setLoading(true);
-        setError("");
+        setError('');
 
-        const response = await fetch(
-          "https://jsonplaceholder.typicode.com/users",
-          { signal: controller.signal },
-        );
+        const response = await fetch('https://jsonplaceholder.typicode.com/users', {
+          signal: controller.signal,
+        });
 
         if (!response.ok) {
-          throw new Error("Failed to fetch users.");
+          throw new Error('Failed to fetch users.');
         }
 
         const data: User[] = await response.json();
         setUsers(data);
       } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
+        if (error instanceof Error && error.name !== 'AbortError') {
           setError(error.message);
         }
       } finally {

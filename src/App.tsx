@@ -1,7 +1,6 @@
-
-import { useState } from "react";
-import StudentForm from "./exercises/StudentForm";
-import StudentList from "./exercises/StudentList";
+import { useState } from 'react';
+import StudentForm from './exercises/StudentForm';
+import StudentList from './exercises/StudentList';
 
 function App() {
   const [students, setStudents] = useState<string[]>([]);

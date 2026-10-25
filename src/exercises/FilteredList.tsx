@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 const students = [
-  { id: 1, name: "Arun", course: "CSE" },
-  { id: 2, name: "Priya", course: "ECE" },
-  { id: 3, name: "Rahul", course: "CSE" },
-  { id: 4, name: "Sneha", course: "ISE" },
-  { id: 5, name: "Kiran", course: "ECE" },
+  { id: 1, name: 'Arun', course: 'CSE' },
+  { id: 2, name: 'Priya', course: 'ECE' },
+  { id: 3, name: 'Rahul', course: 'CSE' },
+  { id: 4, name: 'Sneha', course: 'ISE' },
+  { id: 5, name: 'Kiran', course: 'ECE' },
 ];
 
 function FilteredList() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
 
   const filteredStudents = students.filter((student) =>
     student.name.toLowerCase().includes(search.trim().toLowerCase()),

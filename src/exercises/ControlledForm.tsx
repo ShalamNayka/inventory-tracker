@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 function ControlledForm() {
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("student");
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('student');
   const [isAvailable, setIsAvailable] = useState(false);
 
   return (
@@ -23,11 +23,7 @@ function ControlledForm() {
 
         <div>
           <label htmlFor="role">Choose your role:</label>
-          <select
-            id="role"
-            value={role}
-            onChange={(event) => setRole(event.target.value)}
-          >
+          <select id="role" value={role} onChange={(event) => setRole(event.target.value)}>
             <option value="student">Student</option>
             <option value="developer">Developer</option>
             <option value="designer">Designer</option>
@@ -48,9 +44,9 @@ function ControlledForm() {
       <hr />
 
       <h2>Live Preview</h2>
-      <p>Name: {name || "Not entered"}</p>
+      <p>Name: {name || 'Not entered'}</p>
       <p>Role: {role}</p>
-      <p>Available: {isAvailable ? "Yes" : "No"}</p>
+      <p>Available: {isAvailable ? 'Yes' : 'No'}</p>
     </section>
   );
 }

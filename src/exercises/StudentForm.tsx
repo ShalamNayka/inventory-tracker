@@ -1,4 +1,3 @@
-
 type StudentFormProps = {
   onAddStudent: (name: string) => void;
 };
@@ -9,7 +8,7 @@ function StudentForm({ onAddStudent }: StudentFormProps) {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const name = String(formData.get("name") ?? "").trim();
+    const name = String(formData.get('name') ?? '').trim();
 
     if (!name) {
       return;
@@ -23,12 +22,7 @@ function StudentForm({ onAddStudent }: StudentFormProps) {
     <form onSubmit={handleSubmit}>
       <label htmlFor="student-name">Student name:</label>
 
-      <input
-        id="student-name"
-        name="name"
-        type="text"
-        placeholder="Enter student name"
-      />
+      <input id="student-name" name="name" type="text" placeholder="Enter student name" />
 
       <button type="submit">Add Student</button>
     </form>

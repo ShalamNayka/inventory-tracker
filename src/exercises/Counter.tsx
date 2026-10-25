@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 function Counter() {
   const [count, setCount] = useState<number>(0);
 
-  console.log("Counter rendered");
+  console.log('Counter rendered');
 
   function handleIncrement() {
     setCount((previousCount) => previousCount + 1);
