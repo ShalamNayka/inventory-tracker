@@ -1,13 +1,17 @@
 import type { Category, Item } from '../types/inventory';
 import { isLowStock } from '../utils/inventoryRules';
+import { useRole } from '../hooks/useRole';
 
 type InventoryTableProps = {
   items: Item[];
   categories: Category[];
   onEdit: (item: Item) => void;
+  onManageStock: (item: Item) => void;
+  onDelete: (item: Item) => void;
 };
 
-function InventoryTable({ items, categories, onEdit }: InventoryTableProps) {
+function InventoryTable({ items, categories, onEdit, onManageStock, onDelete }: InventoryTableProps) {
+  const { isAdmin } = useRole();
   const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
 
   if (items.length === 0) {
@@ -61,6 +65,29 @@ function InventoryTable({ items, categories, onEdit }: InventoryTableProps) {
                   >
                     Edit
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onManageStock(item)}
+                    aria-label={`Manage stock for ${item.name}`}
+                  >
+                    Stock In/Out
+                  </button>
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => {
+                        if (window.confirm(`Delete "${item.name}"? This cannot be undone.`)) {
+                          onDelete(item);
+                        }
+                      }}
+                      aria-label={`Delete ${item.name}`}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </td>
               </tr>
             );

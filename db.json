@@ -16,11 +16,11 @@
   "items": [
     {
       "id": "item-1",
-      "name": "Laptop",
+      "name": "Laptop pro",
       "categoryId": "cat-1",
-      "price": 55000,
+      "price": 60000,
       "stock": 8,
-      "lowStockThreshold": 5
+      "lowStockThreshold": 6
     },
     {
       "id": "item-2",
@@ -45,7 +45,16 @@
       "price": 750,
       "stock": 5,
       "lowStockThreshold": 5
+    },
+    {
+      "name": "keyboard",
+      "categoryId": "cat-1",
+      "price": 12000,
+      "stock": 10,
+      "lowStockThreshold": 3,
+      "id": "nPGOgYG3fwk"
     }
   ],
-  "stockMovements": []
+  "stockMovements": [],
+  "$schema": "./node_modules/json-server/schema.json"
 }

@@ -43,3 +43,27 @@ export function updateItem(id: string, updates: Partial<Omit<Item, 'id'>>): Prom
     body: JSON.stringify(updates),
   });
 }
+
+export function createStockMovement(movement: Omit<StockMovement, 'id'>): Promise<StockMovement> {
+  return request<StockMovement>('/stockMovements', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(movement),
+  });
+}
+
+export function updateItemStock(id: string, stock: number): Promise<Item> {
+  return request<Item>(`/items/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ stock }),
+  });
+}
+
+export function deleteItem(id: string): Promise<void> {
+  return request<void>(`/items/${id}`, { method: 'DELETE' });
+}

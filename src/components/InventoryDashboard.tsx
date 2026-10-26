@@ -1,38 +1,52 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { createItem, getCategories, getItems, updateItem } from '../api/inventoryApi';
+import {
+  createItem,
+  createStockMovement,
+  deleteItem,
+  getCategories,
+  getItems,
+  getStockMovements,
+  updateItem,
+  updateItemStock,
+} from '../api/inventoryApi';
 
-import type { Category, Item } from '../types/inventory';
+import type { Category, Item, StockMovement } from '../types/inventory';
 
-import { calculateCategoryTotals, isLowStock } from '../utils/inventoryRules';
+import { calculateCategoryTotals, isLowStock, processStockMovement } from '../utils/inventoryRules';
 
 import EditItemForm from './EditItemForm';
 import InventoryFilters from './InventoryFilters';
 import InventoryTable from './InventoryTable';
 import ItemForm from './ItemForm';
+import StockMovementForm from './StockMovementForm';
+import { useRole } from '../hooks/useRole';
 
 type SortOrder = 'asc' | 'desc';
 
 function InventoryDashboard() {
-  // Inventory data
+  const { role, setRole, isAdmin } = useRole();
+
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [movements, setMovements] = useState<StockMovement[]>([]);
 
-  // Search, category filtering, and sorting
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  // Loading and messages
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Form visibility
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [stockItemId, setStockItemId] = useState<string | null>(null);
 
-  // Load inventory and categories when the component mounts
+  const editingItem = items.find((item) => item.id === editingItemId);
+  const stockItem = items.find((item) => item.id === stockItemId);
+
+  // Load inventory, categories, and movement history.
   useEffect(() => {
     const controller = new AbortController();
 
@@ -41,13 +55,15 @@ function InventoryDashboard() {
         setLoading(true);
         setError(null);
 
-        const [loadedItems, loadedCategories] = await Promise.all([
+        const [loadedItems, loadedCategories, loadedMovements] = await Promise.all([
           getItems(controller.signal),
           getCategories(controller.signal),
+          getStockMovements(controller.signal),
         ]);
 
         setItems(loadedItems);
         setCategories(loadedCategories);
+        setMovements(loadedMovements);
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(err instanceof Error ? err.message : 'Unable to load inventory.');
@@ -61,15 +77,10 @@ function InventoryDashboard() {
 
     void loadInventory();
 
-    return () => {
-      controller.abort();
-    };
+    return () => controller.abort();
   }, []);
 
-  // Find the product currently selected for editing
-  const editingItem = items.find((item) => item.id === editingItemId);
-
-  // Derive visible products from the current search and filter settings
+  // Search, category filtering, and sorting are derived from current items.
   const visibleItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -81,10 +92,8 @@ function InventoryDashboard() {
       );
   }, [items, search, selectedCategory, sortOrder]);
 
-  // Calculate stock totals by category without storing duplicate data
   const categoryTotals = useMemo(() => calculateCategoryTotals(items), [items]);
 
-  // Create a product through the API
   async function handleCreateItem(newItem: Omit<Item, 'id'>): Promise<void> {
     setError(null);
     setSuccessMessage('');
@@ -93,11 +102,9 @@ function InventoryDashboard() {
 
     setItems((currentItems) => [...currentItems, createdItem]);
     setShowItemForm(false);
-
     setSuccessMessage(`${createdItem.name} was added successfully.`);
   }
 
-  // Update the editable product fields through the API
   async function handleUpdateItem(
     id: string,
     updates: Pick<Item, 'name' | 'categoryId' | 'price' | 'lowStockThreshold'>,
@@ -111,6 +118,96 @@ function InventoryDashboard() {
 
     setEditingItemId(null);
     setSuccessMessage(`${updatedItem.name} was updated successfully.`);
+  }
+
+  async function handleDeleteItem(item: Item): Promise<void> {
+    if (!isAdmin) {
+      setError('Only admins can delete products.');
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage('');
+
+    await deleteItem(item.id);
+
+    setItems((currentItems) => currentItems.filter((i) => i.id !== item.id));
+    setSuccessMessage(`${item.name} was deleted.`);
+  }
+
+  async function handleStockMovement(
+    type: StockMovement['type'],
+    quantity: number,
+    reason: string,
+  ): Promise<void> {
+    setError(null);
+    setSuccessMessage('');
+
+    const currentItem = items.find((item) => item.id === stockItemId);
+
+    if (!currentItem) {
+      throw new Error('The selected product could not be found.');
+    }
+
+    // Apply the business rules before making any API requests.
+    const result = processStockMovement(
+      currentItem,
+      type,
+      quantity,
+      reason,
+      crypto.randomUUID(),
+      new Date().toISOString(),
+    );
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    // First update stock in the API.
+    const updatedItem = await updateItemStock(currentItem.id, result.updatedItem.stock);
+
+    // Then create the movement record.
+    let createdMovement: StockMovement;
+
+    try {
+      const movementWithoutId = {
+  itemId: result.movement.itemId,
+  type: result.movement.type,
+  quantity: result.movement.quantity,
+  reason: result.movement.reason,
+  createdAt: result.movement.createdAt,
+};
+
+createdMovement = await createStockMovement(movementWithoutId);
+    } catch {
+      // Best-effort rollback if recording the movement fails.
+      try {
+        await updateItemStock(currentItem.id, currentItem.stock);
+      } catch {
+        throw new Error(
+          'Movement recording and stock rollback both failed. ' +
+            'Please check the product stock and movement history in the API.',
+        );
+      }
+
+      throw new Error(
+        'The movement could not be recorded. The stock rollback succeeded; please retry.',
+      );
+    }
+
+    // Update React state only after both API requests succeed.
+    setItems((currentItems) =>
+      currentItems.map((item) => (item.id === updatedItem.id ? updatedItem : item)),
+    );
+
+    setMovements((currentMovements) => [createdMovement, ...currentMovements]);
+
+    setStockItemId(null);
+
+    setSuccessMessage(
+      `${type === 'IN' ? 'Stock added to' : 'Stock removed from'} ` +
+        `${updatedItem.name}. Current stock: ${updatedItem.stock} units.`,
+    );
   }
 
   if (loading) {
@@ -137,12 +234,31 @@ function InventoryDashboard() {
           <p>Manage products and monitor stock levels.</p>
         </div>
 
+        {/* Role switcher – uses React Context */}
+        <div className="role-switcher">
+          <label htmlFor="role-select">
+            <strong>Role:</strong>
+          </label>
+          <select
+            id="role-select"
+            value={role}
+            onChange={(event) => setRole(event.target.value as 'admin' | 'viewer')}
+          >
+            <option value="viewer">Viewer</option>
+            <option value="admin">Admin</option>
+          </select>
+          <span className={`role-badge role-badge--${role}`}>
+            {isAdmin ? '🔑 Admin' : '👁 Viewer'}
+          </span>
+        </div>
+
         <button
           type="button"
           onClick={() => {
             setSuccessMessage('');
             setError(null);
             setEditingItemId(null);
+            setStockItemId(null);
             setShowItemForm((current) => !current);
           }}
         >
@@ -151,10 +267,8 @@ function InventoryDashboard() {
       </header>
 
       {successMessage && <p role="status">{successMessage}</p>}
-
       {error && <p role="alert">{error}</p>}
 
-      {/* Create product form */}
       {showItemForm && (
         <ItemForm
           categories={categories}
@@ -163,7 +277,6 @@ function InventoryDashboard() {
         />
       )}
 
-      {/* Edit product form */}
       {editingItem && (
         <EditItemForm
           key={editingItem.id}
@@ -174,7 +287,15 @@ function InventoryDashboard() {
         />
       )}
 
-      {/* Inventory summary */}
+      {stockItem && (
+        <StockMovementForm
+          key={stockItem.id}
+          item={stockItem}
+          onSubmit={handleStockMovement}
+          onCancel={() => setStockItemId(null)}
+        />
+      )}
+
       <section className="summary-grid" aria-label="Inventory summary">
         <article className="summary-card">
           <h2>Total Products</h2>
@@ -192,7 +313,6 @@ function InventoryDashboard() {
         </article>
       </section>
 
-      {/* Derived stock totals */}
       <section aria-label="Stock totals by category">
         <h2>Stock by Category</h2>
 
@@ -209,7 +329,6 @@ function InventoryDashboard() {
         )}
       </section>
 
-      {/* Search, filter, and sort controls */}
       <InventoryFilters
         search={search}
         selectedCategory={selectedCategory}
@@ -220,7 +339,6 @@ function InventoryDashboard() {
         onSortChange={setSortOrder}
       />
 
-      {/* Product table */}
       <InventoryTable
         items={visibleItems}
         categories={categories}
@@ -228,9 +346,60 @@ function InventoryDashboard() {
           setError(null);
           setSuccessMessage('');
           setShowItemForm(false);
+          setStockItemId(null);
           setEditingItemId(item.id);
         }}
+        onManageStock={(item) => {
+          setError(null);
+          setSuccessMessage('');
+          setShowItemForm(false);
+          setEditingItemId(null);
+          setStockItemId(item.id);
+        }}
+        onDelete={(item) => {
+          setError(null);
+          setSuccessMessage('');
+          void handleDeleteItem(item);
+        }}
       />
+
+      <section aria-label="Stock movement history">
+        <h2>Stock Movement History</h2>
+
+        {movements.length === 0 ? (
+          <p>No stock movements recorded yet.</p>
+        ) : (
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Quantity</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Date</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {movements.map((movement) => {
+                  const movementItem = items.find((item) => item.id === movement.itemId);
+
+                  return (
+                    <tr key={movement.id}>
+                      <td>{movementItem?.name ?? 'Unknown product'}</td>
+                      <td>{movement.type === 'IN' ? 'Stock In' : 'Stock Out'}</td>
+                      <td>{movement.quantity}</td>
+                      <td>{movement.reason}</td>
+                      <td>{new Date(movement.createdAt).toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </main>
   );
 }
