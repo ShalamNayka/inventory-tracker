@@ -25,10 +25,10 @@
     {
       "id": "item-2",
       "name": "Notebook",
-      "categoryId": "cat-2",
+      "categoryId": "cat-1",
       "price": 80,
-      "stock": 4,
-      "lowStockThreshold": 10
+      "stock": 10,
+      "lowStockThreshold": 5
     },
     {
       "id": "item-3",
@@ -53,8 +53,25 @@
       "stock": 10,
       "lowStockThreshold": 3,
       "id": "nPGOgYG3fwk"
+    },
+    {
+      "name": "Mobile",
+      "categoryId": "cat-1",
+      "price": 50000,
+      "stock": 26,
+      "lowStockThreshold": 6,
+      "id": "-B8xVne9FpM"
     }
   ],
-  "stockMovements": [],
+  "stockMovements": [
+    {
+      "itemId": "item-2",
+      "type": "IN",
+      "quantity": 6,
+      "reason": "new delivery",
+      "createdAt": "2026-11-02T04:53:09.156Z",
+      "id": "b-HNsew807U"
+    }
+  ],
   "$schema": "./node_modules/json-server/schema.json"
 }
