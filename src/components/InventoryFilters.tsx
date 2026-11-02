@@ -5,55 +5,54 @@ type InventoryFiltersProps = {
   selectedCategory: string;
   sortOrder: 'asc' | 'desc';
   categories: Category[];
-  onSearchChange: (value: string) => void;
-  onCategoryChange: (value: string) => void;
-  onSortChange: (value: 'asc' | 'desc') => void;
+  onSearchChange: (v: string) => void;
+  onCategoryChange: (v: string) => void;
+  onSortChange: (v: 'asc' | 'desc') => void;
 };
 
 function InventoryFilters({
-  search,
-  selectedCategory,
-  sortOrder,
-  categories,
-  onSearchChange,
-  onCategoryChange,
-  onSortChange,
+  search, selectedCategory, sortOrder, categories,
+  onSearchChange, onCategoryChange, onSortChange,
 }: InventoryFiltersProps) {
   return (
-    <section aria-label="Inventory filters">
-      <label htmlFor="inventory-search">Search products</label>
-      <input
-        id="inventory-search"
-        type="search"
-        placeholder="Search by product name"
-        value={search}
-        onChange={(event) => onSearchChange(event.target.value)}
-      />
+    <div className="filter-bar">
+      <div className="form-group">
+        <label htmlFor="inv-search">Search</label>
+        <input
+          id="inv-search"
+          type="search"
+          placeholder="Search by product name…"
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      </div>
 
-      <label htmlFor="category-filter">Category</label>
-      <select
-        id="category-filter"
-        value={selectedCategory}
-        onChange={(event) => onCategoryChange(event.target.value)}
-      >
-        <option value="all">All categories</option>
-        {categories.map((category) => (
-          <option key={category.id} value={category.id}>
-            {category.name}
-          </option>
-        ))}
-      </select>
+      <div className="form-group">
+        <label htmlFor="inv-category">Category</label>
+        <select
+          id="inv-category"
+          value={selectedCategory}
+          onChange={(e) => onCategoryChange(e.target.value)}
+        >
+          <option value="all">All categories</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
 
-      <label htmlFor="stock-sort">Sort by stock</label>
-      <select
-        id="stock-sort"
-        value={sortOrder}
-        onChange={(event) => onSortChange(event.target.value as 'asc' | 'desc')}
-      >
-        <option value="asc">Lowest stock first</option>
-        <option value="desc">Highest stock first</option>
-      </select>
-    </section>
+      <div className="form-group">
+        <label htmlFor="inv-sort">Sort by stock</label>
+        <select
+          id="inv-sort"
+          value={sortOrder}
+          onChange={(e) => onSortChange(e.target.value as 'asc' | 'desc')}
+        >
+          <option value="asc">Lowest first</option>
+          <option value="desc">Highest first</option>
+        </select>
+      </div>
+    </div>
   );
 }
 

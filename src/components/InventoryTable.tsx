@@ -12,83 +12,85 @@ type InventoryTableProps = {
 
 function InventoryTable({ items, categories, onEdit, onManageStock, onDelete }: InventoryTableProps) {
   const { isAdmin } = useRole();
-  const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
+  const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
 
   if (items.length === 0) {
-    return <p>No products found.</p>;
+    return (
+      <div className="empty-state">
+        <span style={{ fontSize: '2rem' }}>📭</span>
+        <p>No products match your filters.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="table-container">
+    <div className="table-wrap">
       <table>
         <thead>
           <tr>
-            <th scope="col">Product</th>
-            <th scope="col">Category</th>
-            <th scope="col">Price</th>
-            <th scope="col">Current Stock</th>
-            <th scope="col">Stock Status</th>
-            <th scope="col">Actions</th>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Status</th>
+            {isAdmin && <th>Actions</th>}
           </tr>
         </thead>
 
         <tbody>
           {items.map((item) => {
-            const lowStock = isLowStock(item);
-
+            const low = isLowStock(item);
             return (
               <tr key={item.id}>
-                <td>{item.name}</td>
-
-                <td>{categoryNames.get(item.categoryId) ?? 'Unknown'}</td>
-
+                <td style={{ fontWeight: 600, color: 'var(--text-h)' }}>{item.name}</td>
+                <td>{categoryNames.get(item.categoryId) ?? '—'}</td>
                 <td>
-                  {item.price.toLocaleString('en-IN', {
-                    style: 'currency',
-                    currency: 'INR',
-                  })}
+                  {item.price.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                 </td>
-
-                <td>{item.stock}</td>
-
                 <td>
-                  <span className={lowStock ? 'low-stock' : 'in-stock'}>
-                    {lowStock ? 'Low Stock' : 'In Stock'}
+                  <span style={{ fontWeight: 600, color: low ? 'var(--danger)' : 'var(--text-h)' }}>
+                    {item.stock}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '.75rem', marginLeft: 4 }}>
+                    / {item.lowStockThreshold} min
                   </span>
                 </td>
-
                 <td>
-                  <button
-                    type="button"
-                    onClick={() => onEdit(item)}
-                    aria-label={`Edit ${item.name}`}
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onManageStock(item)}
-                    aria-label={`Manage stock for ${item.name}`}
-                  >
-                    Stock In/Out
-                  </button>
-
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      onClick={() => {
-                        if (window.confirm(`Delete "${item.name}"? This cannot be undone.`)) {
-                          onDelete(item);
-                        }
-                      }}
-                      aria-label={`Delete ${item.name}`}
-                    >
-                      Delete
-                    </button>
-                  )}
+                  <span className={`badge ${low ? 'badge-danger' : 'badge-success'}`}>
+                    {low ? '⚠ Low Stock' : '✓ In Stock'}
+                  </span>
                 </td>
+                {isAdmin && (
+                  <td>
+                    <div className="actions">
+                      <button
+                        className="btn-secondary btn-sm"
+                        onClick={() => onEdit(item)}
+                        aria-label={`Edit ${item.name}`}
+                      >
+                        ✏ Edit
+                      </button>
+                      <button
+                        className="btn-secondary btn-sm"
+                        onClick={() => onManageStock(item)}
+                        aria-label={`Stock movement for ${item.name}`}
+                      >
+                        ↕ Stock
+                      </button>
+                      <button
+                        className="btn-danger btn-sm"
+                        onClick={() => {
+                          if (window.confirm(`Delete "${item.name}"? This cannot be undone.`)) {
+                            onDelete(item);
+                          }
+                        }}
+                        aria-label={`Delete ${item.name}`}
+                      >
+                        🗑 Delete
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             );
           })}
