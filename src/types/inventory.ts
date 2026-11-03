@@ -1,6 +1,7 @@
 export type Item = {
   id: string;
   name: string;
+  sku?: string;
   categoryId: string;
   price: number;
   stock: number;
@@ -22,3 +23,8 @@ export type StockMovement = {
 };
 
 export type UserRole = 'admin' | 'viewer';
+
+export type AuthUser = {
+  username: string;
+  role: UserRole;
+};

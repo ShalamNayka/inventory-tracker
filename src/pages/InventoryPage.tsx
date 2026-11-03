@@ -1,154 +1,202 @@
 import { useMemo, useState } from 'react';
 import Header from '../components/Header';
+import Modal from '../components/Modal';
 import InventoryFilters from '../components/InventoryFilters';
 import InventoryTable from '../components/InventoryTable';
 import ItemForm from '../components/ItemForm';
 import EditItemForm from '../components/EditItemForm';
 import StockMovementForm from '../components/StockMovementForm';
 import { useRole } from '../hooks/useRole';
-import { useInventoryData } from '../hooks/useInventoryDataHook';
-import { processStockMovement } from '../utils/inventoryRules';
 import {
-  createItem,
-  updateItem,
-  deleteItem,
-  updateItemStock,
-  createStockMovement,
-} from '../api/inventoryApi';
+  useItems,
+  useCategories,
+  useCreateItem,
+  useUpdateItem,
+  useDeleteItem,
+  useStockMovementMutation,
+} from '../api/inventoryQueries';
 import type { Item, StockMovement } from '../types/inventory';
+import type { EditItemFormData, ItemFormData } from '../schemas/inventorySchemas';
 
 type SortOrder = 'asc' | 'desc';
 
 function InventoryPage() {
   const { isAdmin } = useRole();
-  const { items, setItems, categories, setMovements, loading, error } = useInventoryData();
 
-  const [search, setSearch]                   = useState('');
+  // ─── Server State (TanStack Query) ──────────────────────────────────────────
+  const { data: items = [], isLoading: itemsLoading, error: itemsError } = useItems();
+  const { data: categories = [], isLoading: catsLoading } = useCategories();
+
+  const createItemMutation = useCreateItem();
+  const updateItemMutation = useUpdateItem();
+  const deleteItemMutation = useDeleteItem();
+  const stockMovementMutation = useStockMovementMutation();
+
+  // ─── UI State (React useState) ──────────────────────────────────────────────
+  const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortOrder, setSortOrder]             = useState<SortOrder>('asc');
-  const [successMsg, setSuccessMsg]           = useState('');
-  const [localError, setLocalError]           = useState('');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  const [showAddForm, setShowAddForm]     = useState(false);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [stockItemId, setStockItemId]     = useState<string | null>(null);
+  // Modal dialog states
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [stockItem, setStockItem] = useState<Item | null>(null);
 
-  const editingItem = items.find((i) => i.id === editingItemId);
-  const stockItem   = items.find((i) => i.id === stockItemId);
+  // User feedback alerts
+  const [toastMessage, setToastMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // ─── Derived Client-Side Filtering & Sorting ────────────────────────────────
   const visibleItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items
-      .filter((i) => i.name.toLowerCase().includes(q))
-      .filter((i) => selectedCategory === 'all' || i.categoryId === selectedCategory)
-      .toSorted((a, b) => sortOrder === 'asc' ? a.stock - b.stock : b.stock - a.stock);
+      .filter((item) => {
+        const matchesName = item.name.toLowerCase().includes(q);
+        const matchesSku = item.sku ? item.sku.toLowerCase().includes(q) : false;
+        return matchesName || matchesSku;
+      })
+      .filter((item) => selectedCategory === 'all' || item.categoryId === selectedCategory)
+      .toSorted((a, b) => (sortOrder === 'asc' ? a.stock - b.stock : b.stock - a.stock));
   }, [items, search, selectedCategory, sortOrder]);
 
-  function flash(msg: string) {
-    setSuccessMsg(msg);
-    setLocalError('');
-    setTimeout(() => setSuccessMsg(''), 3500);
-  }
-  function flashErr(msg: string) { setLocalError(msg); setSuccessMsg(''); }
-
-  async function handleCreate(newItem: Omit<Item, 'id'>) {
-    const created = await createItem(newItem);
-    setItems((prev) => [...prev, created]);
-    setShowAddForm(false);
-    flash(`${created.name} added.`);
-  }
-
-  async function handleUpdate(id: string, updates: Pick<Item, 'name' | 'categoryId' | 'price' | 'lowStockThreshold'>) {
-    const updated = await updateItem(id, updates);
-    setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
-    setEditingItemId(null);
-    flash(`${updated.name} updated.`);
-  }
-
-  async function handleDelete(item: Item) {
-    if (!isAdmin) { flashErr('Only admins can delete products.'); return; }
-    await deleteItem(item.id);
-    setItems((prev) => prev.filter((i) => i.id !== item.id));
-    flash(`${item.name} deleted.`);
-  }
-
-  async function handleStockMovement(type: StockMovement['type'], quantity: number, reason: string) {
-    const current = items.find((i) => i.id === stockItemId);
-    if (!current) throw new Error('Product not found.');
-
-    const result = processStockMovement(current, type, quantity, reason, crypto.randomUUID(), new Date().toISOString());
-    if (!result.success) throw new Error(result.error);
-
-    const updatedItem = await updateItemStock(current.id, result.updatedItem.stock);
-
-    let createdMovement: StockMovement;
+  // ─── Handlers ───────────────────────────────────────────────────────────────
+  const handleCreateProduct = async (formData: ItemFormData) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id: _movId, ...movementBody } = result.movement;
-      createdMovement = await createStockMovement(movementBody);
-    } catch {
-      await updateItemStock(current.id, current.stock).catch(() => null);
-      throw new Error('Movement recording failed. Stock rolled back.');
+      const created = await createItemMutation.mutateAsync({
+        name: formData.name,
+        sku: formData.sku || undefined,
+        categoryId: formData.categoryId,
+        price: formData.price,
+        stock: formData.stock,
+        lowStockThreshold: formData.lowStockThreshold,
+      });
+
+      setIsAddModalOpen(false);
+      showToast(`Product "${created.name}" created successfully!`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to create product', 'error');
+    }
+  };
+
+  const handleUpdateProduct = async (id: string, formData: EditItemFormData) => {
+    try {
+      const updated = await updateItemMutation.mutateAsync({
+        id,
+        updates: {
+          name: formData.name,
+          sku: formData.sku || undefined,
+          categoryId: formData.categoryId,
+          price: formData.price,
+          lowStockThreshold: formData.lowStockThreshold,
+        },
+      });
+
+      setEditingItem(null);
+      showToast(`Product "${updated.name}" updated successfully!`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to update product', 'error');
+    }
+  };
+
+  const handleDeleteProduct = async (item: Item) => {
+    if (!isAdmin) {
+      showToast('Permission denied. Only admins can delete products.', 'error');
+      return;
     }
 
-    setItems((prev) => prev.map((i) => (i.id === updatedItem.id ? updatedItem : i)));
-    setMovements((prev) => [createdMovement, ...prev]);
-    setStockItemId(null);
-    flash(`${type === 'IN' ? 'Added to' : 'Removed from'} ${updatedItem.name}. Stock: ${updatedItem.stock}`);
-  }
+    try {
+      await deleteItemMutation.mutateAsync(item.id);
+      showToast(`Product "${item.name}" was permanently deleted.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to delete product', 'error');
+    }
+  };
+
+  const handleStockMovement = async (
+    type: StockMovement['type'],
+    quantity: number,
+    reason: string,
+  ) => {
+    if (!stockItem) return;
+
+    try {
+      await stockMovementMutation.mutateAsync({
+        item: stockItem,
+        type,
+        quantity,
+        reason,
+      });
+
+      setStockItem(null);
+      showToast(
+        `${type === 'IN' ? 'Restocked' : 'Stocked out'} ${quantity} unit(s) of "${stockItem.name}".`,
+      );
+    } catch (err) {
+      showToast(
+        err instanceof Error
+          ? `Stock movement failed (rolled back): ${err.message}`
+          : 'Stock movement failed and was rolled back.',
+        'error',
+      );
+    }
+  };
+
+  const isLoading = itemsLoading || catsLoading;
 
   return (
     <>
-      <Header title="Inventory" />
+      <Header title="Inventory Catalog" />
+
       <div className="page">
+        {/* Page Top Actions */}
         <div className="page-header">
-          <h1 className="page-title">Products</h1>
+          <div>
+            <h1 className="page-title">Products Inventory</h1>
+            <p className="page-sub">
+              {isAdmin
+                ? 'Full administrative control: manage products, track SKUs, and handle stock movements.'
+                : 'Viewing inventory in read-only mode.'}
+            </p>
+          </div>
+
           {isAdmin && (
             <button
-              className="btn-primary"
-              onClick={() => { setShowAddForm((v) => !v); setEditingItemId(null); setStockItemId(null); }}
+              type="button"
+              className="btn-primary btn-add-product"
+              onClick={() => setIsAddModalOpen(true)}
             >
-              {showAddForm ? '✕ Close' : '+ Add Product'}
+              + Add Product
             </button>
           )}
         </div>
 
-        {successMsg  && <p className="alert alert-success">{successMsg}</p>}
-        {(localError || error) && <p className="alert alert-error">{localError || error}</p>}
-
-        {showAddForm && isAdmin && (
-          <div className="form-panel">
-            <ItemForm
-              categories={categories}
-              onSubmit={handleCreate}
-              onCancel={() => setShowAddForm(false)}
-            />
+        {/* Global Toast Feedback Banner */}
+        {toastMessage && (
+          <div
+            className={`alert ${toastMessage.type === 'success' ? 'alert-success' : 'alert-error'}`}
+            role="status"
+          >
+            {toastMessage.type === 'success' ? '✓ ' : '⚠️ '}
+            {toastMessage.text}
           </div>
         )}
 
-        {editingItem && (
-          <div className="form-panel">
-            <EditItemForm
-              key={editingItem.id}
-              item={editingItem}
-              categories={categories}
-              onSave={handleUpdate}
-              onCancel={() => setEditingItemId(null)}
-            />
+        {/* Server Fetch Error */}
+        {itemsError && (
+          <div className="alert alert-error" role="alert">
+            Failed to connect to API server: {itemsError.message}. Make sure json-server is running
+            on port 3001.
           </div>
         )}
 
-        {stockItem && (
-          <div className="form-panel">
-            <StockMovementForm
-              key={stockItem.id}
-              item={stockItem}
-              onSubmit={handleStockMovement}
-              onCancel={() => setStockItemId(null)}
-            />
-          </div>
-        )}
-
+        {/* Search, Filter & Sort Controls */}
         <InventoryFilters
           search={search}
           selectedCategory={selectedCategory}
@@ -157,23 +205,93 @@ function InventoryPage() {
           onSearchChange={setSearch}
           onCategoryChange={setSelectedCategory}
           onSortChange={setSortOrder}
+          onReset={() => {
+            setSearch('');
+            setSelectedCategory('all');
+            setSortOrder('asc');
+          }}
         />
 
-        {loading ? (
-          <div className="loading">Loading products…</div>
-        ) : (
-          <InventoryTable
-            items={visibleItems}
-            categories={categories}
-            onEdit={(item) => { setEditingItemId(item.id); setShowAddForm(false); setStockItemId(null); }}
-            onManageStock={(item) => { setStockItemId(item.id); setShowAddForm(false); setEditingItemId(null); }}
-            onDelete={(item) => { void handleDelete(item); }}
-          />
+        {/* Loading Spinner */}
+        {isLoading && (
+          <div className="loading-state">
+            <div className="spinner" />
+            <p>Loading catalog items...</p>
+          </div>
         )}
 
-        <p style={{ marginTop: 10, color: 'var(--text-muted)', fontSize: '.8rem' }}>
-          Showing {visibleItems.length} of {items.length} products
-        </p>
+        {/* Data Table */}
+        {!isLoading && (
+          <>
+            <InventoryTable
+              items={visibleItems}
+              categories={categories}
+              onEdit={(item) => setEditingItem(item)}
+              onManageStock={(item) => setStockItem(item)}
+              onDelete={handleDeleteProduct}
+            />
+
+            <div className="table-footer-info">
+              <span>
+                Showing <strong>{visibleItems.length}</strong> of <strong>{items.length}</strong>{' '}
+                total products
+              </span>
+              {search && (
+                <span className="search-active-pill">Filtered by: &quot;{search}&quot;</span>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ─── ADD PRODUCT MODAL POPUP ───────────────────────────────────────── */}
+        <Modal
+          isOpen={isAddModalOpen && isAdmin}
+          onClose={() => setIsAddModalOpen(false)}
+          title="Add New Product"
+          maxWidth="600px"
+        >
+          <ItemForm
+            categories={categories}
+            onSubmit={handleCreateProduct}
+            onCancel={() => setIsAddModalOpen(false)}
+            isSubmitting={createItemMutation.isPending}
+          />
+        </Modal>
+
+        {/* ─── EDIT PRODUCT MODAL POPUP ──────────────────────────────────────── */}
+        <Modal
+          isOpen={Boolean(editingItem) && isAdmin}
+          onClose={() => setEditingItem(null)}
+          title={editingItem ? `Edit "${editingItem.name}"` : 'Edit Product'}
+          maxWidth="600px"
+        >
+          {editingItem && (
+            <EditItemForm
+              item={editingItem}
+              categories={categories}
+              onSave={handleUpdateProduct}
+              onCancel={() => setEditingItem(null)}
+              isSaving={updateItemMutation.isPending}
+            />
+          )}
+        </Modal>
+
+        {/* ─── STOCK MOVEMENT MODAL POPUP ────────────────────────────────────── */}
+        <Modal
+          isOpen={Boolean(stockItem) && isAdmin}
+          onClose={() => setStockItem(null)}
+          title={stockItem ? `Stock Movement: ${stockItem.name}` : 'Stock Movement'}
+          maxWidth="550px"
+        >
+          {stockItem && (
+            <StockMovementForm
+              item={stockItem}
+              onSubmit={handleStockMovement}
+              onCancel={() => setStockItem(null)}
+              isSubmitting={stockMovementMutation.isPending}
+            />
+          )}
+        </Modal>
       </div>
     </>
   );

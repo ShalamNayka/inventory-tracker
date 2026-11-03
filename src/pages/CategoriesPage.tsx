@@ -1,87 +1,150 @@
 import Header from '../components/Header';
-import { useInventoryData } from '../hooks/useInventoryDataHook';
+import StatusBadge from '../components/StatusBadge';
+import { useItems, useCategories } from '../api/inventoryQueries';
 import { calculateCategoryTotals, isLowStock } from '../utils/inventoryRules';
 
 function CategoriesPage() {
-  const { items, categories, loading, error } = useInventoryData();
-  const totals  = calculateCategoryTotals(items);
+  const { data: items = [], isLoading: itemsLoading } = useItems();
+  const { data: categories = [], isLoading: catsLoading, error } = useCategories();
+
+  const totals = calculateCategoryTotals(items);
   const maxTotal = Math.max(...Object.values(totals), 1);
+  const loading = itemsLoading || catsLoading;
 
   return (
     <>
-      <Header title="Categories" />
+      <Header title="Categories &amp; Department Stock" />
+
       <div className="page">
         <div className="page-header">
-          <h1 className="page-title">Stock by Category</h1>
-          <span className="badge badge-info">{categories.length} categories</span>
+          <div>
+            <h1 className="page-title">Categories Overview</h1>
+            <p className="page-sub">
+              Monitor inventory volumes, stock health, and items grouped by product category.
+            </p>
+          </div>
+          <span className="badge badge-info">{categories.length} categories active</span>
         </div>
 
-        {loading && <div className="loading">Loading…</div>}
-        {error   && <p className="alert alert-error">{error}</p>}
+        {error && (
+          <div className="alert alert-error" role="alert">
+            Failed to load category data: {error.message}
+          </div>
+        )}
 
-        {!loading && categories.map((cat) => {
-          const catItems   = items.filter((i) => i.categoryId === cat.id);
-          const total      = totals[cat.id] ?? 0;
-          const pct        = Math.round((total / maxTotal) * 100);
-          const lowItems   = catItems.filter(isLowStock);
+        {loading && (
+          <div className="loading-state">
+            <div className="spinner" />
+            <p>Loading category summaries...</p>
+          </div>
+        )}
 
-          return (
-            <div key={cat.id} className="card" style={{ marginBottom: 16 }}>
-              <div className="card-header">
-                <div>
-                  <h2>{cat.name}</h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>
-                    {catItems.length} product{catItems.length !== 1 ? 's' : ''}
-                    {lowItems.length > 0 && (
-                      <span style={{ color: 'var(--danger)', marginLeft: 8 }}>
-                        ⚠ {lowItems.length} low stock
+        {!loading && categories.length === 0 && (
+          <div className="empty-state">
+            <span className="empty-icon">🗂️</span>
+            <h3>No categories found</h3>
+            <p>No categories have been loaded from the API.</p>
+          </div>
+        )}
+
+        {!loading &&
+          categories.map((cat) => {
+            const catItems = items.filter((i) => i.categoryId === cat.id);
+            const totalStock = totals[cat.id] ?? 0;
+            const percentage = Math.round((totalStock / maxTotal) * 100);
+            const lowItems = catItems.filter(isLowStock);
+            const totalValue = catItems.reduce((acc, i) => acc + i.price * i.stock, 0);
+
+            return (
+              <div key={cat.id} className="card category-detail-card">
+                <div className="card-header">
+                  <div>
+                    <h2 className="cat-title">{cat.name}</h2>
+                    <p className="card-sub">
+                      {catItems.length} product{catItems.length !== 1 ? 's' : ''} in catalog
+                      {lowItems.length > 0 && (
+                        <span className="text-danger" style={{ marginLeft: '10px' }}>
+                          ⚠️ {lowItems.length} with low stock
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="cat-kpis">
+                    <div className="cat-kpi-item">
+                      <span className="cat-kpi-label">Total Stock</span>
+                      <span className="cat-kpi-val">{totalStock} units</span>
+                    </div>
+                    <div className="cat-kpi-item">
+                      <span className="cat-kpi-label">Inventory Value</span>
+                      <span className="cat-kpi-val">
+                        {totalValue.toLocaleString('en-IN', {
+                          style: 'currency',
+                          currency: 'INR',
+                          maximumFractionDigits: 0,
+                        })}
                       </span>
-                    )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Visual */}
+                <div className="cat-progress-section">
+                  <div className="progress-bar">
+                    <div
+                      className={`progress-fill ${
+                        percentage < 20 ? 'low' : percentage < 50 ? 'mid' : ''
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Products Table for this category */}
+                {catItems.length === 0 ? (
+                  <p className="text-muted" style={{ padding: '12px 0' }}>
+                    No products currently assigned to this category.
                   </p>
-                </div>
-                <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)' }}>
-                  {total} units
-                </span>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <div className="progress-bar">
-                  <div
-                    className={`progress-fill ${pct < 20 ? 'low' : pct < 50 ? 'mid' : ''}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-
-              {catItems.length > 0 && (
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Product</th><th>Price</th><th>Stock</th><th>Threshold</th><th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {catItems.map((item) => (
-                        <tr key={item.id}>
-                          <td style={{ fontWeight: 600 }}>{item.name}</td>
-                          <td>{item.price.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
-                          <td>{item.stock}</td>
-                          <td>{item.lowStockThreshold}</td>
-                          <td>
-                            <span className={`badge ${isLowStock(item) ? 'badge-danger' : 'badge-success'}`}>
-                              {isLowStock(item) ? '⚠ Low' : '✓ OK'}
-                            </span>
-                          </td>
+                ) : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>SKU</th>
+                          <th>Price</th>
+                          <th>Stock</th>
+                          <th>Threshold</th>
+                          <th>Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                      </thead>
+                      <tbody>
+                        {catItems.map((item) => (
+                          <tr key={item.id}>
+                            <td style={{ fontWeight: 600 }}>{item.name}</td>
+                            <td>
+                              <span className="sku-badge">{item.sku || '—'}</span>
+                            </td>
+                            <td>
+                              {item.price.toLocaleString('en-IN', {
+                                style: 'currency',
+                                currency: 'INR',
+                              })}
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{item.stock}</td>
+                            <td className="text-muted">{item.lowStockThreshold} min</td>
+                            <td>
+                              <StatusBadge item={item} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
       </div>
     </>
   );

@@ -5,11 +5,11 @@ import type { Category, Item, StockMovement } from '../types/inventory';
 import { InventoryContext } from '../context/InventoryContext';
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
-  const [items,     setItems]     = useState<Item[]>([]);
-  const [catState,  setCatState]  = useState<Category[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [catState, setCatState] = useState<Category[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,12 +40,18 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <InventoryContext.Provider value={{
-      items, setItems,
-      categories: catState,
-      movements, setMovements,
-      loading, error, setError,
-    }}>
+    <InventoryContext.Provider
+      value={{
+        items,
+        setItems,
+        categories: catState,
+        movements,
+        setMovements,
+        loading,
+        error,
+        setError,
+      }}
+    >
       {children}
     </InventoryContext.Provider>
   );

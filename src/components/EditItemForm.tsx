@@ -1,119 +1,157 @@
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { editItemSchema } from '../schemas/inventorySchemas';
+import type { EditItemFormData } from '../schemas/inventorySchemas';
 import type { Category, Item } from '../types/inventory';
 
 type EditItemFormProps = {
   item: Item;
   categories: Category[];
-  onSave: (
-    id: string,
-    updates: Pick<Item, 'name' | 'categoryId' | 'price' | 'lowStockThreshold'>,
-  ) => Promise<void>;
+  onSave: (id: string, updates: EditItemFormData) => Promise<void>;
   onCancel: () => void;
+  isSaving?: boolean;
 };
 
-function EditItemForm({ item, categories, onSave, onCancel }: EditItemFormProps) {
-  const [name, setName] = useState(item.name);
-  const [categoryId, setCategoryId] = useState(item.categoryId);
-  const [price, setPrice] = useState(String(item.price));
-  const [threshold, setThreshold] = useState(String(item.lowStockThreshold));
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
+function EditItemForm({ item, categories, onSave, onCancel, isSaving = false }: EditItemFormProps) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<EditItemFormData>({
+    resolver: zodResolver(editItemSchema),
+    defaultValues: {
+      name: item.name,
+      sku: item.sku ?? '',
+      categoryId: item.categoryId,
+      price: item.price,
+      lowStockThreshold: item.lowStockThreshold,
+    },
+  });
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError('');
-
-    const normalizedName = name.trim();
-    const numericPrice = Number(price);
-    const numericThreshold = Number(threshold);
-
-    if (!normalizedName) {
-      setError('Product name is required.');
-      return;
-    }
-
-    if (!categories.some((category) => category.id === categoryId)) {
-      setError('Please select a valid category.');
-      return;
-    }
-
-    if (price.trim() === '' || !Number.isFinite(numericPrice) || numericPrice < 0) {
-      setError('Price must be a nonnegative number.');
-      return;
-    }
-
-    if (threshold.trim() === '' || !Number.isInteger(numericThreshold) || numericThreshold < 0) {
-      setError('Low-stock threshold must be a nonnegative integer.');
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      await onSave(item.id, {
-        name: normalizedName,
-        categoryId,
-        price: numericPrice,
-        lowStockThreshold: numericThreshold,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update product.');
-    } finally {
-      setSaving(false);
-    }
-  }
+  const onFormSubmit = async (data: EditItemFormData) => {
+    await onSave(item.id, data);
+  };
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <h2>Edit Product</h2>
+    <form onSubmit={handleSubmit(onFormSubmit)} noValidate className="dialog-form">
+      <div className="form-grid">
+        {/* Name */}
+        <div className="form-group full-width">
+          <label htmlFor="edit-item-name">
+            Product Name <span className="required">*</span>
+          </label>
+          <input
+            id="edit-item-name"
+            type="text"
+            className={errors.name ? 'input-error' : ''}
+            {...register('name')}
+          />
+          {errors.name && (
+            <span className="field-error" role="alert">
+              {errors.name.message}
+            </span>
+          )}
+        </div>
 
-      {error && <p role="alert">{error}</p>}
+        {/* SKU */}
+        <div className="form-group">
+          <label htmlFor="edit-item-sku">SKU Code</label>
+          <input
+            id="edit-item-sku"
+            type="text"
+            className={errors.sku ? 'input-error' : ''}
+            {...register('sku')}
+          />
+          {errors.sku && (
+            <span className="field-error" role="alert">
+              {errors.sku.message}
+            </span>
+          )}
+        </div>
 
-      <label htmlFor="edit-item-name">Product name</label>
-      <input id="edit-item-name" value={name} onChange={(event) => setName(event.target.value)} />
+        {/* Category */}
+        <div className="form-group">
+          <label htmlFor="edit-item-category">
+            Category <span className="required">*</span>
+          </label>
+          <select
+            id="edit-item-category"
+            className={errors.categoryId ? 'input-error' : ''}
+            {...register('categoryId')}
+          >
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {errors.categoryId && (
+            <span className="field-error" role="alert">
+              {errors.categoryId.message}
+            </span>
+          )}
+        </div>
 
-      <label htmlFor="edit-item-category">Category</label>
-      <select
-        id="edit-item-category"
-        value={categoryId}
-        onChange={(event) => setCategoryId(event.target.value)}
-      >
-        {categories.map((category) => (
-          <option key={category.id} value={category.id}>
-            {category.name}
-          </option>
-        ))}
-      </select>
+        {/* Price */}
+        <div className="form-group">
+          <label htmlFor="edit-item-price">
+            Unit Price (₹) <span className="required">*</span>
+          </label>
+          <input
+            id="edit-item-price"
+            type="number"
+            min="0"
+            step="any"
+            className={errors.price ? 'input-error' : ''}
+            {...register('price', { valueAsNumber: true })}
+          />
+          {errors.price && (
+            <span className="field-error" role="alert">
+              {errors.price.message}
+            </span>
+          )}
+        </div>
 
-      <label htmlFor="edit-item-price">Price</label>
-      <input
-        id="edit-item-price"
-        type="number"
-        min="0"
-        step="any"
-        value={price}
-        onChange={(event) => setPrice(event.target.value)}
-      />
+        {/* Low-stock threshold */}
+        <div className="form-group">
+          <label htmlFor="edit-item-threshold">
+            Low-Stock Threshold <span className="required">*</span>
+          </label>
+          <input
+            id="edit-item-threshold"
+            type="number"
+            min="0"
+            step="1"
+            className={errors.lowStockThreshold ? 'input-error' : ''}
+            {...register('lowStockThreshold', { valueAsNumber: true })}
+          />
+          {errors.lowStockThreshold && (
+            <span className="field-error" role="alert">
+              {errors.lowStockThreshold.message}
+            </span>
+          )}
+        </div>
 
-      <label htmlFor="edit-item-threshold">Low-stock threshold</label>
-      <input
-        id="edit-item-threshold"
-        type="number"
-        min="0"
-        step="1"
-        value={threshold}
-        onChange={(event) => setThreshold(event.target.value)}
-      />
+        <div className="form-group full-width">
+          <div className="stock-info-box">
+            <span>
+              Current Stock: <strong>{item.stock} units</strong>
+            </span>
+            <small style={{ color: 'var(--text-muted)' }}>
+              (To adjust stock quantity, use the ↕ Stock In/Out movement button on the table)
+            </small>
+          </div>
+        </div>
+      </div>
 
-      <p>Current stock: {item.stock} units. Use Stock In/Out to change it.</p>
-
-      <button type="submit" disabled={saving}>
-        {saving ? 'Saving...' : 'Save Changes'}
-      </button>
-
-      <button type="button" onClick={onCancel} disabled={saving}>
-        Cancel
-      </button>
+      <div className="form-actions-modal">
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSaving}>
+          Cancel
+        </button>
+        <button type="submit" className="btn-primary" disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
     </form>
   );
 }

@@ -1,12 +1,11 @@
-
-import { useEffect, useState } from "react";
-import { getItems } from "../api/inventoryApi";
-import type { Item } from "../types/inventory";
+import { useEffect, useState } from 'react';
+import { getItems } from '../api/inventoryApi';
+import type { Item } from '../types/inventory';
 
 function FetchInventory() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -14,7 +13,7 @@ function FetchInventory() {
     async function loadItems() {
       try {
         setLoading(true);
-        setError("");
+        setError('');
 
         const data = await getItems();
 
@@ -23,9 +22,7 @@ function FetchInventory() {
         }
       } catch (error) {
         if (!controller.signal.aborted) {
-          setError(
-            error instanceof Error ? error.message : "Unable to load inventory.",
-          );
+          setError(error instanceof Error ? error.message : 'Unable to load inventory.');
         }
       } finally {
         if (!controller.signal.aborted) {

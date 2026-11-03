@@ -13,4 +13,3 @@ export type InventoryCtx = {
 };
 
 export const InventoryContext = createContext<InventoryCtx | null>(null);
-
