@@ -25,7 +25,7 @@
     {
       "id": "item-2",
       "name": "Notebook",
-      "categoryId": "cat-1",
+      "categoryId": "cat-2",
       "price": 80,
       "stock": 10,
       "lowStockThreshold": 5
@@ -35,15 +35,15 @@
       "name": "Office Chair",
       "categoryId": "cat-3",
       "price": 3500,
-      "stock": 15,
+      "stock": 13,
       "lowStockThreshold": 5
     },
     {
       "id": "item-4",
       "name": "Wireless Mouse",
-      "categoryId": "cat-1",
-      "price": 750,
-      "stock": 5,
+      "categoryId": "cat-3",
+      "price": 120,
+      "stock": 10,
       "lowStockThreshold": 5
     },
     {
@@ -55,12 +55,12 @@
       "id": "nPGOgYG3fwk"
     },
     {
-      "name": "Mobile",
-      "categoryId": "cat-1",
-      "price": 50000,
-      "stock": 26,
-      "lowStockThreshold": 6,
-      "id": "-B8xVne9FpM"
+      "name": "Bags",
+      "categoryId": "cat-2",
+      "price": 2000,
+      "stock": 7,
+      "lowStockThreshold": 5,
+      "id": "zAVk_-wrWdw"
     }
   ],
   "stockMovements": [
@@ -71,6 +71,22 @@
       "reason": "new delivery",
       "createdAt": "2026-11-02T04:53:09.156Z",
       "id": "b-HNsew807U"
+    },
+    {
+      "itemId": "zAVk_-wrWdw",
+      "type": "IN",
+      "quantity": 1,
+      "reason": "customer sale",
+      "createdAt": "2026-11-02T10:44:06.250Z",
+      "id": "aRv0DDih4JI"
+    },
+    {
+      "itemId": "item-3",
+      "type": "OUT",
+      "quantity": 2,
+      "reason": "Defected",
+      "createdAt": "2026-11-02T10:46:32.964Z",
+      "id": "fsOMZuxxaeQ"
     }
   ],
   "$schema": "./node_modules/json-server/schema.json"
