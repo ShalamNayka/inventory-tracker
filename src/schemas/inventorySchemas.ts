@@ -62,3 +62,23 @@ export const loginSchema = z.object({
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
+
+export const categorySchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Category name is required')
+    .max(60, 'Category name must be less than 60 characters'),
+  description: z
+    .string()
+    .trim()
+    .max(300, 'Description must be less than 300 characters')
+    .optional()
+    .or(z.literal('')),
+  lowStockThreshold: z
+    .number()
+    .int('Low-stock threshold must be an integer')
+    .min(0, 'Low-stock threshold must be nonnegative'),
+});
+
+export type CategoryFormData = z.infer<typeof categorySchema>;

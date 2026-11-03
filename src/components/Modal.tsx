@@ -27,7 +27,7 @@ function Modal({ isOpen, onClose, title, children, maxWidth = '540px' }: ModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation" aria-hidden="true">
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
       <div
         className="modal-container"
         style={{ maxWidth }}

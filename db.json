@@ -89,5 +89,6 @@
       "id": "fsOMZuxxaeQ"
     }
   ],
+  "notifications": [],
   "$schema": "./node_modules/json-server/schema.json"
 }

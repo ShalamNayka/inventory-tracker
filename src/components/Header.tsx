@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useRole } from '../hooks/useRole';
+import NotificationBell from './NotificationBell';
 
 function Header({ title }: { title: string }) {
   const { isAdmin, user, logout, toggleSidebar } = useRole();
@@ -25,6 +26,7 @@ function Header({ title }: { title: string }) {
       </div>
 
       <div className="header-right">
+        <NotificationBell />
         {user && (
           <div className="user-profile-badge">
             <span className={`badge badge-${isAdmin ? 'admin' : 'viewer'} header-role-badge`}>

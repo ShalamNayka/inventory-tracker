@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { itemSchema } from '../schemas/inventorySchemas';
@@ -7,14 +8,24 @@ import type { Category } from '../types/inventory';
 type ItemFormProps = {
   categories: Category[];
   onSubmit: (data: ItemFormData) => Promise<void>;
+  onRequestCreateCategory?: () => void;
+  createdCategory?: Category | null;
   onCancel: () => void;
   isSubmitting?: boolean;
 };
 
-function ItemForm({ categories, onSubmit, onCancel, isSubmitting = false }: ItemFormProps) {
+function ItemForm({
+  categories,
+  onSubmit,
+  onRequestCreateCategory,
+  createdCategory,
+  onCancel,
+  isSubmitting = false,
+}: ItemFormProps) {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -27,6 +38,15 @@ function ItemForm({ categories, onSubmit, onCancel, isSubmitting = false }: Item
       lowStockThreshold: 5,
     },
   });
+
+  useEffect(() => {
+    if (createdCategory) {
+      setValue('categoryId', createdCategory.id, { shouldValidate: true });
+      if (createdCategory.lowStockThreshold !== undefined) {
+        setValue('lowStockThreshold', createdCategory.lowStockThreshold);
+      }
+    }
+  }, [createdCategory, setValue]);
 
   const onFormSubmit = async (data: ItemFormData) => {
     await onSubmit(data);
@@ -76,18 +96,36 @@ function ItemForm({ categories, onSubmit, onCancel, isSubmitting = false }: Item
           <label htmlFor="modal-item-category">
             Category <span className="required">*</span>
           </label>
-          <select
-            id="modal-item-category"
-            className={errors.categoryId ? 'input-error' : ''}
-            {...register('categoryId')}
-          >
-            <option value="">Select a category</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <div className="category-field-row">
+            <select
+              id="modal-item-category"
+              className={errors.categoryId ? 'input-error' : ''}
+              {...register('categoryId', {
+                onChange: (event) => {
+                  const selectedCategory = categories.find((item) => item.id === event.target.value);
+                  if (selectedCategory?.lowStockThreshold !== undefined) {
+                    setValue('lowStockThreshold', selectedCategory.lowStockThreshold);
+                  }
+                },
+              })}
+            >
+              <option value="">Select a category</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {onRequestCreateCategory && (
+              <button
+                type="button"
+                className="btn-secondary category-add-btn"
+                onClick={onRequestCreateCategory}
+              >
+                + Add Category
+              </button>
+            )}
+          </div>
           {errors.categoryId && (
             <span className="field-error" role="alert">
               {errors.categoryId.message}

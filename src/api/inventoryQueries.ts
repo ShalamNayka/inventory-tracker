@@ -1,21 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createItem,
+  createCategory,
+  createNotification,
   createStockMovement,
+  deleteCategory,
   deleteItem,
   getCategories,
   getItems,
+  getNotifications,
   getStockMovements,
   updateItem,
+  updateCategory,
   updateItemStock,
+  markNotificationRead,
 } from './inventoryApi';
-import type { Category, Item, StockMovement } from '../types/inventory';
+import type { Category, InventoryNotification, Item, StockMovement } from '../types/inventory';
+import type { CategoryFormData } from '../schemas/inventorySchemas';
 import { processStockMovement } from '../utils/inventoryRules';
+import { createRefreshedConditionNotifications, createStockChangeNotification } from '../utils/stockNotifications';
 
 export const QUERY_KEYS = {
   items: ['items'] as const,
   categories: ['categories'] as const,
   stockMovements: ['stockMovements'] as const,
+  notifications: ['notifications'] as const,
 };
 
 export function useItems() {
@@ -39,6 +48,40 @@ export function useStockMovements() {
   });
 }
 
+export function useNotifications() {
+  return useQuery<InventoryNotification[], Error>({
+    queryKey: QUERY_KEYS.notifications,
+    queryFn: async ({ signal }) => {
+      const [items, existingNotifications] = await Promise.all([
+        getItems(signal),
+        getNotifications(signal),
+      ]);
+      const pendingNotifications = createRefreshedConditionNotifications(
+        items,
+        existingNotifications,
+      );
+      const createdNotifications = await Promise.all(
+        pendingNotifications.map((notification) => createNotification(notification)),
+      );
+
+      return [...existingNotifications, ...createdNotifications].toSorted((first, second) =>
+        second.createdAt.localeCompare(first.createdAt),
+      );
+    },
+  });
+}
+
+export function useMarkNotificationsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => Promise.all(ids.map((id) => markNotificationRead(id))),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
+    },
+  });
+}
+
 export function useCreateItem() {
   const queryClient = useQueryClient();
 
@@ -46,6 +89,54 @@ export function useCreateItem() {
     mutationFn: (newItem: Omit<Item, 'id'>) => createItem(newItem),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
+    },
+  });
+}
+
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (category: CategoryFormData) => createCategory(category),
+    onSuccess: (createdCategory) => {
+      queryClient.setQueryData<Category[]>(QUERY_KEYS.categories, (current = []) => {
+        return current.some((category) => category.id === createdCategory.id)
+          ? current
+          : [...current, createdCategory];
+      });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.categories });
+    },
+  });
+}
+
+export function useUpdateCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: CategoryFormData }) =>
+      updateCategory(id, updates),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.categories });
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const items = await getItems();
+      queryClient.setQueryData<Item[]>(QUERY_KEYS.items, items);
+      if (items.some((item) => item.categoryId === id)) {
+        throw new Error('Reassign or remove this category’s products before deleting it.');
+      }
+
+      await deleteCategory(id);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.categories });
     },
   });
 }
@@ -58,6 +149,7 @@ export function useUpdateItem() {
       updateItem(id, updates),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
     },
   });
 }
@@ -69,6 +161,7 @@ export function useDeleteItem() {
     mutationFn: (id: string) => deleteItem(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
     },
   });
 }
@@ -98,15 +191,15 @@ export function useStockMovementMutation() {
       const updatedItem = await updateItemStock(item.id, ruleResult.updatedItem.stock);
 
       // 3. Persist movement record
+      let movement: StockMovement;
       try {
-        const movement = await createStockMovement({
+        movement = await createStockMovement({
           itemId: item.id,
           type,
           quantity,
           reason,
           createdAt,
         });
-        return { updatedItem, movement };
       } catch (err) {
         // Rollback server stock if movement log fails
         await updateItemStock(item.id, item.stock).catch(() => null);
@@ -117,6 +210,13 @@ export function useStockMovementMutation() {
           { cause: err },
         );
       }
+
+      const notification = createStockChangeNotification(item, updatedItem, { type, quantity });
+      if (notification) {
+        await createNotification(notification).catch(() => null);
+      }
+
+      return { updatedItem, movement };
     },
 
     // ─── Optimistic Update ─────────────────────────────────────────────────────
@@ -149,6 +249,7 @@ export function useStockMovementMutation() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items });
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.stockMovements });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
     },
   });
 }

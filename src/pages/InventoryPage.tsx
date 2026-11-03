@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
 import InventoryFilters from '../components/InventoryFilters';
@@ -6,6 +7,7 @@ import InventoryTable from '../components/InventoryTable';
 import ItemForm from '../components/ItemForm';
 import EditItemForm from '../components/EditItemForm';
 import StockMovementForm from '../components/StockMovementForm';
+import CategoryModal from '../components/CategoryModal';
 import { useRole } from '../hooks/useRole';
 import {
   useItems,
@@ -13,15 +15,18 @@ import {
   useCreateItem,
   useUpdateItem,
   useDeleteItem,
+  useCreateCategory,
   useStockMovementMutation,
 } from '../api/inventoryQueries';
-import type { Item, StockMovement } from '../types/inventory';
-import type { EditItemFormData, ItemFormData } from '../schemas/inventorySchemas';
+import type { Category, Item, StockMovement } from '../types/inventory';
+import type { CategoryFormData, EditItemFormData, ItemFormData } from '../schemas/inventorySchemas';
 
 type SortOrder = 'asc' | 'desc';
 
 function InventoryPage() {
   const { isAdmin } = useRole();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const notificationItemId = searchParams.get('item');
 
   // ─── Server State (TanStack Query) ──────────────────────────────────────────
   const { data: items = [], isLoading: itemsLoading, error: itemsError } = useItems();
@@ -30,6 +35,7 @@ function InventoryPage() {
   const createItemMutation = useCreateItem();
   const updateItemMutation = useUpdateItem();
   const deleteItemMutation = useDeleteItem();
+  const createCategoryMutation = useCreateCategory();
   const stockMovementMutation = useStockMovementMutation();
 
   // ─── UI State (React useState) ──────────────────────────────────────────────
@@ -39,6 +45,8 @@ function InventoryPage() {
 
   // Modal dialog states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isQuickCategoryModalOpen, setIsQuickCategoryModalOpen] = useState(false);
+  const [createdCategory, setCreatedCategory] = useState<Category | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [stockItem, setStockItem] = useState<Item | null>(null);
 
@@ -48,6 +56,9 @@ function InventoryPage() {
     text: string;
   } | null>(null);
 
+  const notificationItem = items.find((item) => item.id === notificationItemId);
+  const activeSearch = notificationItem?.name ?? search;
+
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 4000);
@@ -55,7 +66,7 @@ function InventoryPage() {
 
   // ─── Derived Client-Side Filtering & Sorting ────────────────────────────────
   const visibleItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = activeSearch.trim().toLowerCase();
     return items
       .filter((item) => {
         const matchesName = item.name.toLowerCase().includes(q);
@@ -64,7 +75,16 @@ function InventoryPage() {
       })
       .filter((item) => selectedCategory === 'all' || item.categoryId === selectedCategory)
       .toSorted((a, b) => (sortOrder === 'asc' ? a.stock - b.stock : b.stock - a.stock));
-  }, [items, search, selectedCategory, sortOrder]);
+  }, [items, activeSearch, selectedCategory, sortOrder]);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (notificationItemId) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('item');
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const handleCreateProduct = async (formData: ItemFormData) => {
@@ -83,6 +103,13 @@ function InventoryPage() {
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to create product', 'error');
     }
+  };
+
+  const handleCreateQuickCategory = async (formData: CategoryFormData) => {
+    const category = await createCategoryMutation.mutateAsync(formData);
+    setCreatedCategory(category);
+    setIsQuickCategoryModalOpen(false);
+    showToast(`Category "${category.name}" created and selected.`);
   };
 
   const handleUpdateProduct = async (id: string, formData: EditItemFormData) => {
@@ -170,7 +197,10 @@ function InventoryPage() {
             <button
               type="button"
               className="btn-primary btn-add-product"
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                setCreatedCategory(null);
+                setIsAddModalOpen(true);
+              }}
             >
               + Add Product
             </button>
@@ -198,15 +228,16 @@ function InventoryPage() {
 
         {/* Search, Filter & Sort Controls */}
         <InventoryFilters
-          search={search}
+          search={activeSearch}
           selectedCategory={selectedCategory}
           sortOrder={sortOrder}
           categories={categories}
-          onSearchChange={setSearch}
+          onSearchChange={handleSearchChange}
           onCategoryChange={setSelectedCategory}
           onSortChange={setSortOrder}
           onReset={() => {
             setSearch('');
+            if (notificationItemId) setSearchParams({}, { replace: true });
             setSelectedCategory('all');
             setSortOrder('asc');
           }}
@@ -236,8 +267,8 @@ function InventoryPage() {
                 Showing <strong>{visibleItems.length}</strong> of <strong>{items.length}</strong>{' '}
                 total products
               </span>
-              {search && (
-                <span className="search-active-pill">Filtered by: &quot;{search}&quot;</span>
+              {activeSearch && (
+                <span className="search-active-pill">Filtered by: &quot;{activeSearch}&quot;</span>
               )}
             </div>
           </>
@@ -253,10 +284,19 @@ function InventoryPage() {
           <ItemForm
             categories={categories}
             onSubmit={handleCreateProduct}
+            onRequestCreateCategory={() => setIsQuickCategoryModalOpen(true)}
+            createdCategory={createdCategory}
             onCancel={() => setIsAddModalOpen(false)}
             isSubmitting={createItemMutation.isPending}
           />
         </Modal>
+
+        <CategoryModal
+          isOpen={isQuickCategoryModalOpen && isAdmin}
+          onClose={() => setIsQuickCategoryModalOpen(false)}
+          onSubmit={handleCreateQuickCategory}
+          isSubmitting={createCategoryMutation.isPending}
+        />
 
         {/* ─── EDIT PRODUCT MODAL POPUP ──────────────────────────────────────── */}
         <Modal
