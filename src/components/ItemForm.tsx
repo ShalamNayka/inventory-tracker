@@ -1,167 +1,213 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { itemSchema } from '../schemas/inventorySchemas';
+import type { ItemFormData } from '../schemas/inventorySchemas';
 import type { Category } from '../types/inventory';
 
 type ItemFormProps = {
   categories: Category[];
-  onSubmit: (item: {
-    name: string;
-    categoryId: string;
-    price: number;
-    stock: number;
-    lowStockThreshold: number;
-  }) => Promise<void>;
+  onSubmit: (data: ItemFormData) => Promise<void>;
+  onRequestCreateCategory?: () => void;
+  createdCategory?: Category | null;
   onCancel: () => void;
+  isSubmitting?: boolean;
 };
 
-type FormValues = {
-  name: string;
-  categoryId: string;
-  price: string;
-  stock: string;
-  lowStockThreshold: string;
-};
+function ItemForm({
+  categories,
+  onSubmit,
+  onRequestCreateCategory,
+  createdCategory,
+  onCancel,
+  isSubmitting = false,
+}: ItemFormProps) {
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<ItemFormData>({
+    resolver: zodResolver(itemSchema),
+    defaultValues: {
+      name: '',
+      sku: '',
+      categoryId: '',
+      price: 0,
+      stock: 0,
+      lowStockThreshold: 5,
+    },
+  });
 
-const initialValues: FormValues = {
-  name: '',
-  categoryId: '',
-  price: '',
-  stock: '',
-  lowStockThreshold: '',
-};
-
-function ItemForm({ categories, onSubmit, onCancel }: ItemFormProps) {
-  const [values, setValues] = useState<FormValues>(initialValues);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  function updateField(field: keyof FormValues, value: string) {
-    setValues((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError('');
-
-    const name = values.name.trim();
-    const price = Number(values.price);
-    const stock = Number(values.stock);
-    const lowStockThreshold = Number(values.lowStockThreshold);
-
-    if (!name) {
-      setError('Product name is required.');
-      return;
+  useEffect(() => {
+    if (createdCategory) {
+      setValue('categoryId', createdCategory.id, { shouldValidate: true });
+      if (createdCategory.lowStockThreshold !== undefined) {
+        setValue('lowStockThreshold', createdCategory.lowStockThreshold);
+      }
     }
+  }, [createdCategory, setValue]);
 
-    if (!categories.some((category) => category.id === values.categoryId)) {
-      setError('Please select a valid category.');
-      return;
-    }
-
-    if (values.price.trim() === '' || !Number.isFinite(price) || price < 0) {
-      setError('Price must be a valid, nonnegative number.');
-      return;
-    }
-
-    if (values.stock.trim() === '' || !Number.isInteger(stock) || stock < 0) {
-      setError('Stock must be a nonnegative integer.');
-      return;
-    }
-
-    if (
-      values.lowStockThreshold.trim() === '' ||
-      !Number.isInteger(lowStockThreshold) ||
-      lowStockThreshold < 0
-    ) {
-      setError('Low-stock threshold must be a nonnegative integer.');
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      await onSubmit({
-        name,
-        categoryId: values.categoryId,
-        price,
-        stock,
-        lowStockThreshold,
-      });
-
-      setValues(initialValues);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create product.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const onFormSubmit = async (data: ItemFormData) => {
+    await onSubmit(data);
+  };
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <h2>Add Product</h2>
+    <form onSubmit={handleSubmit(onFormSubmit)} noValidate className="dialog-form">
+      <div className="form-grid">
+        {/* Product Name */}
+        <div className="form-group full-width">
+          <label htmlFor="modal-item-name">
+            Product Name <span className="required">*</span>
+          </label>
+          <input
+            id="modal-item-name"
+            type="text"
+            placeholder="e.g. Mechanical Keyboard"
+            className={errors.name ? 'input-error' : ''}
+            {...register('name')}
+          />
+          {errors.name && (
+            <span className="field-error" role="alert">
+              {errors.name.message}
+            </span>
+          )}
+        </div>
 
-      {error && <p role="alert">{error}</p>}
+        {/* SKU */}
+        <div className="form-group">
+          <label htmlFor="modal-item-sku">SKU Code</label>
+          <input
+            id="modal-item-sku"
+            type="text"
+            placeholder="e.g. ELEC-KB-001"
+            className={errors.sku ? 'input-error' : ''}
+            {...register('sku')}
+          />
+          {errors.sku && (
+            <span className="field-error" role="alert">
+              {errors.sku.message}
+            </span>
+          )}
+        </div>
 
-      <label htmlFor="item-name">Product name</label>
-      <input
-        id="item-name"
-        value={values.name}
-        onChange={(event) => updateField('name', event.target.value)}
-      />
+        {/* Category */}
+        <div className="form-group">
+          <label htmlFor="modal-item-category">
+            Category <span className="required">*</span>
+          </label>
+          <div className="category-field-row">
+            <select
+              id="modal-item-category"
+              className={errors.categoryId ? 'input-error' : ''}
+              {...register('categoryId', {
+                onChange: (event) => {
+                  const selectedCategory = categories.find((item) => item.id === event.target.value);
+                  if (selectedCategory?.lowStockThreshold !== undefined) {
+                    setValue('lowStockThreshold', selectedCategory.lowStockThreshold);
+                  }
+                },
+              })}
+            >
+              <option value="">Select a category</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {onRequestCreateCategory && (
+              <button
+                type="button"
+                className="btn-secondary category-add-btn"
+                onClick={onRequestCreateCategory}
+              >
+                + Add Category
+              </button>
+            )}
+          </div>
+          {errors.categoryId && (
+            <span className="field-error" role="alert">
+              {errors.categoryId.message}
+            </span>
+          )}
+        </div>
 
-      <label htmlFor="item-category">Category</label>
-      <select
-        id="item-category"
-        value={values.categoryId}
-        onChange={(event) => updateField('categoryId', event.target.value)}
-      >
-        <option value="">Select a category</option>
-        {categories.map((category) => (
-          <option key={category.id} value={category.id}>
-            {category.name}
-          </option>
-        ))}
-      </select>
+        {/* Price */}
+        <div className="form-group">
+          <label htmlFor="modal-item-price">
+            Unit Price (₹) <span className="required">*</span>
+          </label>
+          <input
+            id="modal-item-price"
+            type="number"
+            min="0"
+            step="any"
+            placeholder="0"
+            className={errors.price ? 'input-error' : ''}
+            {...register('price', { valueAsNumber: true })}
+          />
+          {errors.price && (
+            <span className="field-error" role="alert">
+              {errors.price.message}
+            </span>
+          )}
+        </div>
 
-      <label htmlFor="item-price">Price</label>
-      <input
-        id="item-price"
-        type="number"
-        min="0"
-        step="any"
-        value={values.price}
-        onChange={(event) => updateField('price', event.target.value)}
-      />
+        {/* Initial Stock */}
+        <div className="form-group">
+          <label htmlFor="modal-item-stock">
+            Initial Stock <span className="required">*</span>
+          </label>
+          <input
+            id="modal-item-stock"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="0"
+            className={errors.stock ? 'input-error' : ''}
+            {...register('stock', { valueAsNumber: true })}
+          />
+          {errors.stock && (
+            <span className="field-error" role="alert">
+              {errors.stock.message}
+            </span>
+          )}
+        </div>
 
-      <label htmlFor="item-stock">Initial stock</label>
-      <input
-        id="item-stock"
-        type="number"
-        min="0"
-        step="1"
-        value={values.stock}
-        onChange={(event) => updateField('stock', event.target.value)}
-      />
+        {/* Low-stock threshold */}
+        <div className="form-group full-width">
+          <label htmlFor="modal-item-threshold">
+            Low-Stock Alert Threshold <span className="required">*</span>
+          </label>
+          <input
+            id="modal-item-threshold"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="5"
+            className={errors.lowStockThreshold ? 'input-error' : ''}
+            {...register('lowStockThreshold', { valueAsNumber: true })}
+          />
+          <small className="field-hint">
+            Alerts when stock level is equal to or falls below this number.
+          </small>
+          {errors.lowStockThreshold && (
+            <span className="field-error" role="alert">
+              {errors.lowStockThreshold.message}
+            </span>
+          )}
+        </div>
+      </div>
 
-      <label htmlFor="item-threshold">Low-stock threshold</label>
-      <input
-        id="item-threshold"
-        type="number"
-        min="0"
-        step="1"
-        value={values.lowStockThreshold}
-        onChange={(event) => updateField('lowStockThreshold', event.target.value)}
-      />
-
-      <button type="submit" disabled={submitting}>
-        {submitting ? 'Adding...' : 'Add Product'}
-      </button>
-
-      <button type="button" onClick={onCancel} disabled={submitting}>
-        Cancel
-      </button>
+      <div className="form-actions-modal">
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </button>
+        <button type="submit" className="btn-primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Adding...' : 'Add Product'}
+        </button>
+      </div>
     </form>
   );
 }

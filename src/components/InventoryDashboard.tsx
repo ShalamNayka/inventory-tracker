@@ -25,7 +25,7 @@ import { useRole } from '../hooks/useRole';
 type SortOrder = 'asc' | 'desc';
 
 function InventoryDashboard() {
-  const { role, setRole, isAdmin } = useRole();
+  const { isAdmin } = useRole();
 
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -171,14 +171,14 @@ function InventoryDashboard() {
 
     try {
       const movementWithoutId = {
-  itemId: result.movement.itemId,
-  type: result.movement.type,
-  quantity: result.movement.quantity,
-  reason: result.movement.reason,
-  createdAt: result.movement.createdAt,
-};
+        itemId: result.movement.itemId,
+        type: result.movement.type,
+        quantity: result.movement.quantity,
+        reason: result.movement.reason,
+        createdAt: result.movement.createdAt,
+      };
 
-createdMovement = await createStockMovement(movementWithoutId);
+      createdMovement = await createStockMovement(movementWithoutId);
     } catch {
       // Best-effort rollback if recording the movement fails.
       try {
@@ -232,24 +232,6 @@ createdMovement = await createStockMovement(movementWithoutId);
         <div>
           <h1>Inventory Tracker</h1>
           <p>Manage products and monitor stock levels.</p>
-        </div>
-
-        {/* Role switcher – uses React Context */}
-        <div className="role-switcher">
-          <label htmlFor="role-select">
-            <strong>Role:</strong>
-          </label>
-          <select
-            id="role-select"
-            value={role}
-            onChange={(event) => setRole(event.target.value as 'admin' | 'viewer')}
-          >
-            <option value="viewer">Viewer</option>
-            <option value="admin">Admin</option>
-          </select>
-          <span className={`role-badge role-badge--${role}`}>
-            {isAdmin ? '🔑 Admin' : '👁 Viewer'}
-          </span>
         </div>
 
         <button
