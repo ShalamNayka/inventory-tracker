@@ -11,8 +11,10 @@ function NotificationBell() {
   const { isAdmin } = useRole();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const seenNotificationIds = useRef<Set<string> | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [toastNotification, setToastNotification] = useState<InventoryNotification | null>(null);
   const [showMovementUpdates, setShowMovementUpdates] = useState(() => {
     try {
       return localStorage.getItem(MOVEMENT_UPDATES_KEY) !== 'false';
@@ -22,6 +24,31 @@ function NotificationBell() {
   });
   const { data = [], isLoading, error } = useNotifications();
   const markRead = useMarkNotificationsRead();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!seenNotificationIds.current) {
+      seenNotificationIds.current = new Set(data.map((notification) => notification.id));
+      return;
+    }
+
+    const newAlerts = data.filter(
+      (notification) =>
+        !seenNotificationIds.current?.has(notification.id) &&
+        notification.type !== 'STOCK_UPDATED',
+    );
+    data.forEach((notification) => seenNotificationIds.current?.add(notification.id));
+
+    if (newAlerts[0]) setToastNotification(newAlerts[0]);
+  }, [data, isLoading]);
+
+  useEffect(() => {
+    if (!toastNotification) return;
+
+    const timeoutId = window.setTimeout(() => setToastNotification(null), 6000);
+    return () => window.clearTimeout(timeoutId);
+  }, [toastNotification]);
 
   useEffect(() => {
     try {
@@ -52,16 +79,14 @@ function NotificationBell() {
   }, [isOpen]);
 
   const notifications = data.filter((notification) => {
-    if (!isAdmin) return notification.type !== 'STOCK_UPDATED' && notification.type !== 'STOCK_RESTORED';
-    return (
-      showMovementUpdates ||
-      (notification.type !== 'STOCK_UPDATED' && notification.type !== 'STOCK_RESTORED')
-    );
+    if (notification.type !== 'STOCK_UPDATED') return true;
+    return isAdmin && showMovementUpdates;
   });
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
   const handleSelect = (notification: InventoryNotification) => {
     if (!notification.isRead) markRead.mutate([notification.id]);
+    setToastNotification(null);
     setIsOpen(false);
     navigate(`/inventory?item=${encodeURIComponent(notification.itemId)}`);
   };
@@ -73,6 +98,27 @@ function NotificationBell() {
 
   return (
     <div className="notification-bell-wrap" ref={containerRef}>
+      {toastNotification && (
+        <div className="notification-toast" role="status">
+          <button
+            type="button"
+            className="notification-toast-content"
+            onClick={() => handleSelect(toastNotification)}
+          >
+            <strong>{toastNotification.title}</strong>
+            <span>{toastNotification.message}</span>
+            <small>Just now</small>
+          </button>
+          <button
+            type="button"
+            className="notification-toast-dismiss"
+            aria-label="Dismiss notification"
+            onClick={() => setToastNotification(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
       <button
         type="button"
         className="notification-bell"

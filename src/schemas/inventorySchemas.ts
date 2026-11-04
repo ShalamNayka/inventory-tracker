@@ -9,16 +9,20 @@ export const itemSchema = z.object({
   sku: z
     .string()
     .trim()
-    .max(50, 'SKU must be less than 50 characters')
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'SKU is required')
+    .max(50, 'SKU must be less than 50 characters'),
   categoryId: z.string().min(1, 'Please select a valid category'),
-  price: z.number().min(0, 'Price must be a nonnegative number'),
-  stock: z.number().int('Stock must be an integer').min(0, 'Stock must be a nonnegative integer'),
+  price: z
+    .number({ error: 'Unit price is required' })
+    .positive('Unit price must be greater than 0'),
+  stock: z
+    .number({ error: 'Initial stock is required' })
+    .int('Stock must be an integer')
+    .min(0, 'Stock cannot be negative'),
   lowStockThreshold: z
-    .number()
+    .number({ error: 'Threshold is required' })
     .int('Low-stock threshold must be an integer')
-    .min(0, 'Low-stock threshold must be a nonnegative integer'),
+    .min(0, 'Threshold cannot be negative'),
 });
 
 export type ItemFormData = z.infer<typeof itemSchema>;
@@ -32,15 +36,16 @@ export const editItemSchema = z.object({
   sku: z
     .string()
     .trim()
-    .max(50, 'SKU must be less than 50 characters')
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'SKU is required')
+    .max(50, 'SKU must be less than 50 characters'),
   categoryId: z.string().min(1, 'Please select a valid category'),
-  price: z.number().min(0, 'Price must be a nonnegative number'),
+  price: z
+    .number({ error: 'Unit price is required' })
+    .positive('Unit price must be greater than 0'),
   lowStockThreshold: z
-    .number()
+    .number({ error: 'Threshold is required' })
     .int('Low-stock threshold must be an integer')
-    .min(0, 'Low-stock threshold must be a nonnegative integer'),
+    .min(0, 'Threshold cannot be negative'),
 });
 
 export type EditItemFormData = z.infer<typeof editItemSchema>;

@@ -10,8 +10,7 @@ type NotificationInput = Omit<InventoryNotification, 'id'>;
 
 export function getStockCondition(item: Pick<Item, 'stock' | 'lowStockThreshold'>): StockCondition {
   if (item.stock === 0) return 'out-of-stock';
-  if (item.stock < item.lowStockThreshold) return 'low-stock';
-  if (item.stock === item.lowStockThreshold) return 'at-threshold';
+  if (item.stock <= item.lowStockThreshold) return 'low-stock';
   return 'healthy';
 }
 
@@ -42,9 +41,9 @@ function conditionNotification(item: Item, condition: StockCondition): Notificat
     case 'at-threshold':
       return {
         ...common,
-        type: 'STOCK_ALERT',
-        title: 'Stock Alert',
-        message: `${item.name} reached its low-stock threshold of ${item.lowStockThreshold} units.`,
+        type: 'LOW_STOCK',
+        title: 'Low Stock',
+        message: `${item.name} has ${item.stock} units remaining (threshold ${item.lowStockThreshold}).`,
       };
     case 'healthy':
       return null;
@@ -97,8 +96,10 @@ function latestConditions(notifications: InventoryNotification[]): Map<string, S
   for (const notification of notifications) {
     const previous = latest.get(notification.itemId);
     if (!previous || notification.createdAt >= previous.createdAt) {
+      const condition =
+        notification.condition === 'at-threshold' ? 'low-stock' : notification.condition;
       latest.set(notification.itemId, {
-        condition: notification.condition,
+        condition,
         createdAt: notification.createdAt,
       });
     }

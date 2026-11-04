@@ -20,7 +20,7 @@ describe('getStockCondition', () => {
   it.each([
     [0, 'out-of-stock'],
     [3, 'low-stock'],
-    [5, 'at-threshold'],
+    [5, 'low-stock'],
     [6, 'healthy'],
   ] as const)('classifies stock %s as %s', (stock, condition) => {
     expect(getStockCondition({ ...sampleItem, stock })).toBe(condition);
@@ -90,6 +90,25 @@ describe('createRefreshedConditionNotifications', () => {
     expect(first).toHaveLength(1);
     expect(first[0].type).toBe('LOW_STOCK');
     expect(createRefreshedConditionNotifications([lowStockItem], [savedNotification])).toEqual([]);
+  });
+
+  it('creates a low-stock alert at the threshold and recognizes legacy threshold alerts', () => {
+    const atThresholdItem = { ...sampleItem, stock: sampleItem.lowStockThreshold };
+    const alert = createRefreshedConditionNotifications([atThresholdItem], []);
+    const legacyAlert: InventoryNotification = {
+      id: 'legacy-notice',
+      itemId: sampleItem.id,
+      itemName: sampleItem.name,
+      type: 'STOCK_ALERT',
+      condition: 'at-threshold',
+      title: 'Stock Alert',
+      message: 'Wireless Mouse reached its low-stock threshold.',
+      createdAt: '2026-10-25T10:00:00.000Z',
+      isRead: false,
+    };
+
+    expect(alert[0].type).toBe('LOW_STOCK');
+    expect(createRefreshedConditionNotifications([atThresholdItem], [legacyAlert])).toEqual([]);
   });
 
   it('creates a restored event if refreshed stock is now healthy', () => {

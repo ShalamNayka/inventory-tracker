@@ -92,11 +92,11 @@ function InventoryTable({
 
               {/* Admin-only Actions Column */}
               {isAdmin && (
-                <td>
-                  <div className="actions table-actions-right">
+                <td className="actions-cell">
+                  <div className="table-actions">
                     <button
                       type="button"
-                      className="btn-secondary btn-sm"
+                      className="btn-action btn-action-edit"
                       onClick={() => onEdit(item)}
                       aria-label={`Edit ${item.name}`}
                     >
@@ -105,7 +105,7 @@ function InventoryTable({
 
                     <button
                       type="button"
-                      className="btn-secondary btn-sm"
+                      className="btn-action btn-action-stock"
                       onClick={() => onManageStock(item)}
                       aria-label={`Stock In or Out for ${item.name}`}
                     >
@@ -114,7 +114,7 @@ function InventoryTable({
 
                     <button
                       type="button"
-                      className="btn-danger btn-sm"
+                      className="btn-action btn-action-delete"
                       onClick={() => {
                         if (window.confirm(`Delete "${item.name}"? This cannot be undone.`)) {
                           onDelete(item);
