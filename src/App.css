@@ -232,6 +232,58 @@
   flex: 0 0 auto;
 }
 
+.notification-toast {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 121;
+  width: min(340px, calc(100vw - 28px));
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warning);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.notification-toast-content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.notification-toast-content strong {
+  color: var(--text-h);
+}
+
+.notification-toast-content span {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.notification-toast-content small {
+  color: var(--text-muted);
+}
+
+.notification-toast-dismiss {
+  padding: 0 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .notification-bell {
   width: 38px;
   height: 38px;
@@ -584,8 +636,57 @@
   background: var(--danger);
 }
 
-.table-actions-right {
-  justify-content: flex-end;
+.table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: fit-content;
+}
+
+.actions-cell {
+  text-align: left;
+}
+
+.btn-action {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.btn-action-edit {
+  background: var(--info-bg);
+  color: #1d4ed8;
+  border: 1px solid var(--info-border);
+}
+
+.btn-action-edit:hover {
+  background: var(--info);
+  color: #fff;
+}
+
+.btn-action-stock {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.btn-action-stock:hover {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.btn-action-delete {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.btn-action-delete:hover {
+  background: var(--danger);
+  color: #fff;
 }
 
 .table-footer-info {
@@ -1342,6 +1443,14 @@
 }
 
 @media (max-width: 600px) {
+  .table-actions {
+    gap: 8px;
+  }
+
+  .btn-action {
+    padding: 6px 8px;
+  }
+
   .stat-grid {
     grid-template-columns: 1fr;
   }

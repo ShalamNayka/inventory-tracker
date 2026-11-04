@@ -107,7 +107,7 @@ function InventoryDashboard() {
 
   async function handleUpdateItem(
     id: string,
-    updates: Pick<Item, 'name' | 'categoryId' | 'price' | 'lowStockThreshold'>,
+    updates: Pick<Item, 'name' | 'sku' | 'categoryId' | 'price' | 'lowStockThreshold'>,
   ): Promise<void> {
     setError(null);
     setSuccessMessage('');
@@ -254,6 +254,7 @@ function InventoryDashboard() {
       {showItemForm && (
         <ItemForm
           categories={categories}
+          items={items}
           onSubmit={handleCreateItem}
           onCancel={() => setShowItemForm(false)}
         />
@@ -263,6 +264,7 @@ function InventoryDashboard() {
         <EditItemForm
           key={editingItem.id}
           item={editingItem}
+          items={items}
           categories={categories}
           onSave={handleUpdateItem}
           onCancel={() => setEditingItemId(null)}

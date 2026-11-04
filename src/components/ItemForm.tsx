@@ -3,10 +3,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { itemSchema } from '../schemas/inventorySchemas';
 import type { ItemFormData } from '../schemas/inventorySchemas';
-import type { Category } from '../types/inventory';
+import type { Category, Item } from '../types/inventory';
+import { hasDuplicateSku } from '../utils/skuRules';
 
 type ItemFormProps = {
   categories: Category[];
+  items: Item[];
   onSubmit: (data: ItemFormData) => Promise<void>;
   onRequestCreateCategory?: () => void;
   createdCategory?: Category | null;
@@ -16,6 +18,7 @@ type ItemFormProps = {
 
 function ItemForm({
   categories,
+  items,
   onSubmit,
   onRequestCreateCategory,
   createdCategory,
@@ -26,6 +29,8 @@ function ItemForm({
     register,
     handleSubmit,
     setValue,
+    clearErrors,
+    setError,
     formState: { errors },
   } = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -33,9 +38,6 @@ function ItemForm({
       name: '',
       sku: '',
       categoryId: '',
-      price: 0,
-      stock: 0,
-      lowStockThreshold: 5,
     },
   });
 
@@ -49,6 +51,16 @@ function ItemForm({
   }, [createdCategory, setValue]);
 
   const onFormSubmit = async (data: ItemFormData) => {
+    clearErrors('sku');
+    if (hasDuplicateSku(items, data.sku)) {
+      setError('sku', { type: 'manual', message: 'This SKU already exists' });
+      return;
+    }
+    if (!categories.some((category) => category.id === data.categoryId)) {
+      setError('categoryId', { type: 'manual', message: 'Please select a valid category' });
+      return;
+    }
+
     await onSubmit(data);
   };
 
@@ -64,8 +76,9 @@ function ItemForm({
             id="modal-item-name"
             type="text"
             placeholder="e.g. Mechanical Keyboard"
+            required
             className={errors.name ? 'input-error' : ''}
-            {...register('name')}
+            {...register('name', { required: 'Product name is required' })}
           />
           {errors.name && (
             <span className="field-error" role="alert">
@@ -76,13 +89,16 @@ function ItemForm({
 
         {/* SKU */}
         <div className="form-group">
-          <label htmlFor="modal-item-sku">SKU Code</label>
+          <label htmlFor="modal-item-sku">
+            SKU Code <span className="required">*</span>
+          </label>
           <input
             id="modal-item-sku"
             type="text"
             placeholder="e.g. ELEC-KB-001"
+            required
             className={errors.sku ? 'input-error' : ''}
-            {...register('sku')}
+            {...register('sku', { required: 'SKU is required' })}
           />
           {errors.sku && (
             <span className="field-error" role="alert">
@@ -100,7 +116,9 @@ function ItemForm({
             <select
               id="modal-item-category"
               className={errors.categoryId ? 'input-error' : ''}
+              required
               {...register('categoryId', {
+                required: 'Please select a valid category',
                 onChange: (event) => {
                   const selectedCategory = categories.find((item) => item.id === event.target.value);
                   if (selectedCategory?.lowStockThreshold !== undefined) {
@@ -141,11 +159,12 @@ function ItemForm({
           <input
             id="modal-item-price"
             type="number"
-            min="0"
-            step="any"
-            placeholder="0"
+            min="0.01"
+            step="0.01"
+            placeholder="0.00"
+            required
             className={errors.price ? 'input-error' : ''}
-            {...register('price', { valueAsNumber: true })}
+            {...register('price', { valueAsNumber: true, required: 'Unit price is required' })}
           />
           {errors.price && (
             <span className="field-error" role="alert">
@@ -165,8 +184,9 @@ function ItemForm({
             min="0"
             step="1"
             placeholder="0"
+            required
             className={errors.stock ? 'input-error' : ''}
-            {...register('stock', { valueAsNumber: true })}
+            {...register('stock', { valueAsNumber: true, required: 'Initial stock is required' })}
           />
           {errors.stock && (
             <span className="field-error" role="alert">
@@ -186,8 +206,12 @@ function ItemForm({
             min="0"
             step="1"
             placeholder="5"
+            required
             className={errors.lowStockThreshold ? 'input-error' : ''}
-            {...register('lowStockThreshold', { valueAsNumber: true })}
+            {...register('lowStockThreshold', {
+              valueAsNumber: true,
+              required: 'Threshold is required',
+            })}
           />
           <small className="field-hint">
             Alerts when stock level is equal to or falls below this number.

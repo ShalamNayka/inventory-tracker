@@ -3,19 +3,30 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { editItemSchema } from '../schemas/inventorySchemas';
 import type { EditItemFormData } from '../schemas/inventorySchemas';
 import type { Category, Item } from '../types/inventory';
+import { hasDuplicateSku } from '../utils/skuRules';
 
 type EditItemFormProps = {
   item: Item;
+  items: Item[];
   categories: Category[];
   onSave: (id: string, updates: EditItemFormData) => Promise<void>;
   onCancel: () => void;
   isSaving?: boolean;
 };
 
-function EditItemForm({ item, categories, onSave, onCancel, isSaving = false }: EditItemFormProps) {
+function EditItemForm({
+  item,
+  items,
+  categories,
+  onSave,
+  onCancel,
+  isSaving = false,
+}: EditItemFormProps) {
   const {
     register,
     handleSubmit,
+    clearErrors,
+    setError,
     formState: { errors },
   } = useForm<EditItemFormData>({
     resolver: zodResolver(editItemSchema),
@@ -29,6 +40,16 @@ function EditItemForm({ item, categories, onSave, onCancel, isSaving = false }: 
   });
 
   const onFormSubmit = async (data: EditItemFormData) => {
+    clearErrors('sku');
+    if (hasDuplicateSku(items, data.sku, item.id)) {
+      setError('sku', { type: 'manual', message: 'This SKU already exists' });
+      return;
+    }
+    if (!categories.some((category) => category.id === data.categoryId)) {
+      setError('categoryId', { type: 'manual', message: 'Please select a valid category' });
+      return;
+    }
+
     await onSave(item.id, data);
   };
 
@@ -43,8 +64,9 @@ function EditItemForm({ item, categories, onSave, onCancel, isSaving = false }: 
           <input
             id="edit-item-name"
             type="text"
+            required
             className={errors.name ? 'input-error' : ''}
-            {...register('name')}
+            {...register('name', { required: 'Product name is required' })}
           />
           {errors.name && (
             <span className="field-error" role="alert">
@@ -55,12 +77,15 @@ function EditItemForm({ item, categories, onSave, onCancel, isSaving = false }: 
 
         {/* SKU */}
         <div className="form-group">
-          <label htmlFor="edit-item-sku">SKU Code</label>
+          <label htmlFor="edit-item-sku">
+            SKU Code <span className="required">*</span>
+          </label>
           <input
             id="edit-item-sku"
             type="text"
+            required
             className={errors.sku ? 'input-error' : ''}
-            {...register('sku')}
+            {...register('sku', { required: 'SKU is required' })}
           />
           {errors.sku && (
             <span className="field-error" role="alert">
@@ -77,7 +102,8 @@ function EditItemForm({ item, categories, onSave, onCancel, isSaving = false }: 
           <select
             id="edit-item-category"
             className={errors.categoryId ? 'input-error' : ''}
-            {...register('categoryId')}
+            required
+            {...register('categoryId', { required: 'Please select a valid category' })}
           >
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -100,10 +126,11 @@ function EditItemForm({ item, categories, onSave, onCancel, isSaving = false }: 
           <input
             id="edit-item-price"
             type="number"
-            min="0"
-            step="any"
+            min="0.01"
+            step="0.01"
+            required
             className={errors.price ? 'input-error' : ''}
-            {...register('price', { valueAsNumber: true })}
+            {...register('price', { valueAsNumber: true, required: 'Unit price is required' })}
           />
           {errors.price && (
             <span className="field-error" role="alert">
@@ -122,8 +149,12 @@ function EditItemForm({ item, categories, onSave, onCancel, isSaving = false }: 
             type="number"
             min="0"
             step="1"
+            required
             className={errors.lowStockThreshold ? 'input-error' : ''}
-            {...register('lowStockThreshold', { valueAsNumber: true })}
+            {...register('lowStockThreshold', {
+              valueAsNumber: true,
+              required: 'Threshold is required',
+            })}
           />
           {errors.lowStockThreshold && (
             <span className="field-error" role="alert">

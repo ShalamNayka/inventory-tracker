@@ -2,7 +2,9 @@
   "categories": [
     {
       "id": "cat-1",
-      "name": "Electronics"
+      "name": "Electronics",
+      "description": "Electronic and Electrical items",
+      "lowStockThreshold": 5
     },
     {
       "id": "cat-2",
@@ -11,6 +13,18 @@
     {
       "id": "cat-3",
       "name": "Furniture"
+    },
+    {
+      "name": "mechanical",
+      "description": "",
+      "lowStockThreshold": 5,
+      "id": "2ddC8tpvC8Y"
+    },
+    {
+      "name": "Chemicals",
+      "description": "Lab purpose",
+      "lowStockThreshold": 3,
+      "id": "wHu8LLc0bEk"
     }
   ],
   "items": [
@@ -31,19 +45,11 @@
       "lowStockThreshold": 5
     },
     {
-      "id": "item-3",
-      "name": "Office Chair",
-      "categoryId": "cat-3",
-      "price": 3500,
-      "stock": 13,
-      "lowStockThreshold": 5
-    },
-    {
       "id": "item-4",
       "name": "Wireless Mouse",
       "categoryId": "cat-3",
       "price": 120,
-      "stock": 10,
+      "stock": 0,
       "lowStockThreshold": 5
     },
     {
@@ -58,9 +64,46 @@
       "name": "Bags",
       "categoryId": "cat-2",
       "price": 2000,
-      "stock": 7,
+      "stock": 14,
       "lowStockThreshold": 5,
-      "id": "zAVk_-wrWdw"
+      "id": "zAVk_-wrWdw",
+      "sku": "ee123"
+    },
+    {
+      "name": "Bottles",
+      "sku": "ee124",
+      "categoryId": "cat-2",
+      "price": 50,
+      "stock": 3,
+      "lowStockThreshold": 5,
+      "id": "5Qrt5tsigKs"
+    },
+    {
+      "name": "lathe machine",
+      "sku": "ee2",
+      "categoryId": "2ddC8tpvC8Y",
+      "price": 0,
+      "stock": 1,
+      "lowStockThreshold": 5,
+      "id": "mke7_bIjjj4"
+    },
+    {
+      "name": "burrete",
+      "sku": "ee3",
+      "categoryId": "wHu8LLc0bEk",
+      "price": 450,
+      "stock": 7,
+      "lowStockThreshold": 3,
+      "id": "pCpU7BDBAOs"
+    },
+    {
+      "name": "pipet",
+      "sku": "yryr3",
+      "categoryId": "wHu8LLc0bEk",
+      "price": 240,
+      "stock": 8,
+      "lowStockThreshold": 10,
+      "id": "9ZeBPWBYb0g"
     }
   ],
   "stockMovements": [
@@ -81,14 +124,162 @@
       "id": "aRv0DDih4JI"
     },
     {
-      "itemId": "item-3",
+      "itemId": null,
       "type": "OUT",
       "quantity": 2,
       "reason": "Defected",
       "createdAt": "2026-11-02T10:46:32.964Z",
       "id": "fsOMZuxxaeQ"
+    },
+    {
+      "itemId": null,
+      "type": "IN",
+      "quantity": 2,
+      "reason": "new stock",
+      "createdAt": "2026-11-04T04:25:49.172Z",
+      "id": "BfWoaX2-X6k"
+    },
+    {
+      "itemId": "item-4",
+      "type": "OUT",
+      "quantity": 7,
+      "reason": "Defected",
+      "createdAt": "2026-11-04T04:31:48.786Z",
+      "id": "DMbjCP9itt0"
+    },
+    {
+      "itemId": "zAVk_-wrWdw",
+      "type": "IN",
+      "quantity": 7,
+      "reason": "New stock",
+      "createdAt": "2026-11-04T05:52:27.566Z",
+      "id": "r9q37B0OZRY"
+    },
+    {
+      "itemId": "5Qrt5tsigKs",
+      "type": "OUT",
+      "quantity": 4,
+      "reason": "niiy",
+      "createdAt": "2026-11-04T05:57:09.552Z",
+      "id": "-UmtEf96wcA"
+    },
+    {
+      "itemId": "item-4",
+      "type": "IN",
+      "quantity": 9,
+      "reason": "ghf",
+      "createdAt": "2026-11-04T05:57:37.532Z",
+      "id": "cVyXqKu03ZM"
+    },
+    {
+      "itemId": "item-4",
+      "type": "OUT",
+      "quantity": 12,
+      "reason": "Soldout",
+      "createdAt": "2026-11-04T08:52:09.891Z",
+      "id": "upqXX7L2wrA"
     }
   ],
-  "notifications": [],
+  "notifications": [
+    {
+      "itemId": null,
+      "itemName": "mobile cover",
+      "condition": "low-stock",
+      "createdAt": "2026-11-04T04:21:11.892Z",
+      "isRead": true,
+      "type": "LOW_STOCK",
+      "title": "Low Stock",
+      "message": "mobile cover has 1 units remaining (threshold 5).",
+      "id": "kVj8yaaK_Ag"
+    },
+    {
+      "itemId": null,
+      "itemName": "mobile cover",
+      "type": "STOCK_UPDATED",
+      "condition": "low-stock",
+      "title": "Stock Updated",
+      "message": "mobile cover received 2 new units.",
+      "createdAt": "2026-11-04T04:25:49.231Z",
+      "isRead": true,
+      "id": "TyYbvLmIHPE"
+    },
+    {
+      "itemId": "item-4",
+      "itemName": "Wireless Mouse",
+      "condition": "low-stock",
+      "createdAt": "2026-11-04T04:31:48.811Z",
+      "isRead": true,
+      "type": "LOW_STOCK",
+      "title": "Low Stock",
+      "message": "Wireless Mouse has 3 units remaining (threshold 5).",
+      "id": "bzNVQDyaKS4"
+    },
+    {
+      "itemId": "mke7_bIjjj4",
+      "itemName": "lathe machine",
+      "condition": "low-stock",
+      "createdAt": "2026-11-04T05:42:46.143Z",
+      "isRead": true,
+      "type": "LOW_STOCK",
+      "title": "Low Stock",
+      "message": "lathe machine has 1 units remaining (threshold 5).",
+      "id": "DUblrCNpouo"
+    },
+    {
+      "itemId": "zAVk_-wrWdw",
+      "itemName": "Bags",
+      "type": "STOCK_UPDATED",
+      "condition": "healthy",
+      "title": "Stock Updated",
+      "message": "Bags received 7 new units.",
+      "createdAt": "2026-11-04T05:52:27.615Z",
+      "isRead": true,
+      "id": "HKhIclVVinU"
+    },
+    {
+      "itemId": "9ZeBPWBYb0g",
+      "itemName": "pipet",
+      "condition": "low-stock",
+      "createdAt": "2026-11-04T05:54:42.942Z",
+      "isRead": true,
+      "type": "LOW_STOCK",
+      "title": "Low Stock",
+      "message": "pipet has 8 units remaining (threshold 10).",
+      "id": "wjbN30vH0gc"
+    },
+    {
+      "itemId": "5Qrt5tsigKs",
+      "itemName": "Bottles",
+      "condition": "low-stock",
+      "createdAt": "2026-11-04T05:57:09.601Z",
+      "isRead": true,
+      "type": "LOW_STOCK",
+      "title": "Low Stock",
+      "message": "Bottles has 3 units remaining (threshold 5).",
+      "id": "e9JWTbY9x6M"
+    },
+    {
+      "itemId": "item-4",
+      "itemName": "Wireless Mouse",
+      "type": "STOCK_RESTORED",
+      "condition": "healthy",
+      "title": "Stock Restored",
+      "message": "Wireless Mouse stock is replenished to 12 units.",
+      "createdAt": "2026-11-04T05:57:37.570Z",
+      "isRead": true,
+      "id": "E78ISI_EL6U"
+    },
+    {
+      "itemId": "item-4",
+      "itemName": "Wireless Mouse",
+      "condition": "out-of-stock",
+      "createdAt": "2026-11-04T08:52:09.951Z",
+      "isRead": false,
+      "type": "OUT_OF_STOCK",
+      "title": "Out of Stock",
+      "message": "Wireless Mouse has 0 units remaining.",
+      "id": "nLphCpBOLBw"
+    }
+  ],
   "$schema": "./node_modules/json-server/schema.json"
 }

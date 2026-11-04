@@ -1,4 +1,5 @@
 import type { Category, InventoryNotification, Item, StockMovement } from '../types/inventory';
+import { hasDuplicateSku } from '../utils/skuRules';
 
 const API_BASE_URL = 'http://localhost:3001';
 
@@ -6,7 +7,25 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    const body = await response.text();
+    let message = `API request failed: ${response.status}`;
+    if (body) {
+      try {
+        const errorBody: unknown = JSON.parse(body);
+        if (
+          typeof errorBody === 'object' &&
+          errorBody !== null &&
+          'error' in errorBody &&
+          typeof errorBody.error === 'string'
+        ) {
+          message = errorBody.error;
+        }
+      } catch {
+        message = body;
+      }
+    }
+
+    throw new Error(message);
   }
 
   return (await response.json()) as T;
@@ -78,16 +97,26 @@ export function markNotificationRead(id: string): Promise<InventoryNotification>
 }
 
 export function createItem(item: Omit<Item, 'id'>): Promise<Item> {
-  return request<Item>('/items', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(item),
-  });
+  return validateItemSku(item.sku).then(() =>
+    request<Item>('/items', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ...item, sku: item.sku?.trim() }),
+    }),
+  );
 }
 
-export function updateItem(id: string, updates: Partial<Omit<Item, 'id'>>): Promise<Item> {
+export async function updateItem(
+  id: string,
+  updates: Partial<Omit<Item, 'id'>>,
+): Promise<Item> {
+  if (updates.sku !== undefined) {
+    await validateItemSku(updates.sku, id);
+    updates = { ...updates, sku: updates.sku.trim() };
+  }
+
   return request<Item>(`/items/${id}`, {
     method: 'PATCH',
     headers: {
@@ -95,6 +124,18 @@ export function updateItem(id: string, updates: Partial<Omit<Item, 'id'>>): Prom
     },
     body: JSON.stringify(updates),
   });
+}
+
+async function validateItemSku(sku: string | undefined, exceptId?: string): Promise<void> {
+  const normalizedSku = sku?.trim();
+  if (!normalizedSku) {
+    throw new Error('SKU is required.');
+  }
+
+  const items = await getItems();
+  if (hasDuplicateSku(items, normalizedSku, exceptId)) {
+    throw new Error('This SKU already exists');
+  }
 }
 
 export function createStockMovement(movement: Omit<StockMovement, 'id'>): Promise<StockMovement> {

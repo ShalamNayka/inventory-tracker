@@ -283,6 +283,7 @@ function InventoryPage() {
         >
           <ItemForm
             categories={categories}
+            items={items}
             onSubmit={handleCreateProduct}
             onRequestCreateCategory={() => setIsQuickCategoryModalOpen(true)}
             createdCategory={createdCategory}
@@ -308,6 +309,7 @@ function InventoryPage() {
           {editingItem && (
             <EditItemForm
               item={editingItem}
+              items={items}
               categories={categories}
               onSave={handleUpdateProduct}
               onCancel={() => setEditingItem(null)}
